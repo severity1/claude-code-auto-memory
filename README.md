@@ -1,10 +1,30 @@
 # claude-code-memory
 
-Automatically maintains CLAUDE.md files as codebases evolve.
+**Automatic CLAUDE.md maintenance for Claude Code** - Zero-config plugin that keeps your project context in sync as your codebase evolves.
 
-## Overview
+[![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-Plugin-blueviolet)](https://claude.ai/code)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Zero Config](https://img.shields.io/badge/setup-zero--config-brightgreen)]()
+[![Token Efficient](https://img.shields.io/badge/tokens-zero--overhead-blue)]()
 
-This Claude Code plugin keeps your project's CLAUDE.md documentation in sync with code changes. It uses a token-efficient architecture with hooks, agents, and skills to track file modifications and update relevant documentation sections automatically.
+## The Problem
+
+CLAUDE.md files become stale as codebases evolve:
+
+- Build commands change but documentation stays outdated
+- Architecture shifts go unrecorded
+- Code conventions drift without documentation
+- New team members get incorrect context
+
+**Manual maintenance is tedious and often forgotten.**
+
+## The Solution
+
+claude-code-memory automatically updates CLAUDE.md when you make changes - with **zero token overhead** in your main conversation.
+
+```
+You edit code -> Plugin tracks changes -> Isolated agent updates docs -> Context stays fresh
+```
 
 ## Features
 
@@ -164,6 +184,23 @@ claude-code-memory/
 └── tests/
 ```
 
+## Why claude-code-memory?
+
+| Feature | claude-code-memory | Other Solutions |
+|---------|-------------------|-----------------|
+| Token overhead | **Zero** | Hook output adds tokens |
+| External deps | **None** | SQLite, Vector DBs, Workers |
+| Processing | **Isolated agent** | Inline or external service |
+| Updates | **Marker-based** | Full file regeneration |
+| Monorepo | **Subtree CLAUDE.md** | Root only |
+| Config required | **None** | Config files needed |
+
+See also: [memory-store-plugin](https://github.com/julep-ai/memory-store-plugin), [claude-mem](https://github.com/thedotmack/claude-mem), [claude-code-branch-memory-manager](https://github.com/Davidcreador/claude-code-branch-memory-manager)
+
 ## License
 
 MIT
+
+---
+
+**Keywords**: Claude Code plugin, CLAUDE.md, automatic documentation, memory management, context persistence, token-efficient, zero-config, monorepo, AI coding assistant
