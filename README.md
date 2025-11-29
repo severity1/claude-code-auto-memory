@@ -1,13 +1,13 @@
 # claude-code-auto-memory
 
-**Your CLAUDE.md, always in sync.** Zero tokens. Zero config. Just works.
+**Your CLAUDE.md, always in sync.** Minimal tokens. Zero config. Just works.
 
 A Claude Code plugin that watches what Claude Code edits, deletes, and moves - then quietly updates your project documentation in the background. No manual maintenance needed.
 
 [![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-Plugin-blueviolet)](https://claude.ai/code)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Zero Config](https://img.shields.io/badge/setup-zero--config-brightgreen)]()
-[![Token Efficient](https://img.shields.io/badge/tokens-zero--overhead-blue)]()
+[![Token Efficient](https://img.shields.io/badge/tokens-minimal--overhead-blue)]()
 
 ## The Problem
 
@@ -22,7 +22,7 @@ CLAUDE.md files become stale as codebases evolve:
 
 ## The Solution
 
-claude-code-auto-memory automatically updates CLAUDE.md when Claude Code makes changes - with **zero token overhead** in your main conversation.
+claude-code-auto-memory automatically updates CLAUDE.md when Claude Code makes changes. Processing happens in an isolated agent, so it doesn't consume your main conversation's context window.
 
 ```
 Claude Code edits code -> Plugin tracks changes -> Isolated agent updates docs -> Context stays fresh
@@ -32,8 +32,8 @@ Claude Code edits code -> Plugin tracks changes -> Isolated agent updates docs -
 
 - **Automatic sync**: Tracks Edit/Write/Bash operations and updates CLAUDE.md at end of turn
 - **Bash operation tracking**: Detects rm, mv, git rm, git mv, unlink commands
-- **Zero-token tracking**: PostToolUse hook has no output, pure file tracking
-- **Isolated processing**: Agent runs in separate context, doesn't bloat conversation
+- **Minimal-token tracking**: PostToolUse hook has no output; stop hook triggers isolated agent
+- **Isolated processing**: Agent runs in separate context window, doesn't consume main session tokens
 - **Marker-based updates**: Only modifies AUTO-MANAGED sections, preserves manual content
 - **Subtree support**: Hierarchical CLAUDE.md for monorepos
 
@@ -151,7 +151,7 @@ CLAUDE.md updated
 
 - **PostToolUse hook**: Zero token cost (no output)
 - **Stop hook**: Minimal output only when dirty files exist
-- **Agent**: Runs in isolated context (~50 tokens)
+- **Agent**: Runs in isolated context window - doesn't consume main session tokens
 - **Skills**: Progressive disclosure - load only when invoked
 
 ## CLAUDE.md Format
@@ -226,7 +226,7 @@ claude-code-auto-memory/
 
 | Feature | claude-code-auto-memory | Other Solutions |
 |---------|-------------------|-----------------|
-| Token overhead | **Zero** | Hook output adds tokens |
+| Token overhead | **Minimal** (isolated agent) | Hook output adds tokens |
 | External deps | **None** | SQLite, Vector DBs, Workers |
 | Processing | **Isolated agent** | Inline or external service |
 | Updates | **Marker-based** | Full file regeneration |
