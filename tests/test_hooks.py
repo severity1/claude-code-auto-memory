@@ -269,6 +269,73 @@ class TestPostToolUseHook:
         assert result.stdout == ""
         assert result.stderr == ""
 
+    def test_stops_at_shell_operators(self, tmp_path):
+        """Hook stops parsing at shell operators like && || ; |."""
+        env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
+
+        # Test && operator - should only track file.py, not 'echo' or 'done'
+        subprocess.run(
+            [sys.executable, SCRIPTS_DIR / "post-tool-use.py"],
+            env={**os.environ, **env},
+            input=self._make_bash_input("rm file.py && echo done"),
+            capture_output=True,
+            text=True,
+        )
+        dirty_file = tmp_path / ".claude" / ".dirty-files"
+        assert dirty_file.exists()
+        content = dirty_file.read_text()
+        assert "file.py" in content
+        assert "echo" not in content
+        assert "done" not in content
+        assert "&&" not in content
+
+    def test_stops_at_semicolon(self, tmp_path):
+        """Hook stops parsing at semicolon operator."""
+        env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
+        subprocess.run(
+            [sys.executable, SCRIPTS_DIR / "post-tool-use.py"],
+            env={**os.environ, **env},
+            input=self._make_bash_input("rm old.py ; ls -la"),
+            capture_output=True,
+            text=True,
+        )
+        dirty_file = tmp_path / ".claude" / ".dirty-files"
+        content = dirty_file.read_text()
+        assert "old.py" in content
+        assert "ls" not in content
+        assert "-la" not in content
+
+    def test_stops_at_pipe(self, tmp_path):
+        """Hook stops parsing at pipe operator."""
+        env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
+        subprocess.run(
+            [sys.executable, SCRIPTS_DIR / "post-tool-use.py"],
+            env={**os.environ, **env},
+            input=self._make_bash_input("rm -rf build | tee log.txt"),
+            capture_output=True,
+            text=True,
+        )
+        dirty_file = tmp_path / ".claude" / ".dirty-files"
+        content = dirty_file.read_text()
+        assert "build" in content
+        assert "tee" not in content
+        assert "log.txt" not in content
+
+    def test_stops_at_redirect(self, tmp_path):
+        """Hook stops parsing at redirect operators."""
+        env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
+        subprocess.run(
+            [sys.executable, SCRIPTS_DIR / "post-tool-use.py"],
+            env={**os.environ, **env},
+            input=self._make_bash_input("rm deleted.py > /dev/null"),
+            capture_output=True,
+            text=True,
+        )
+        dirty_file = tmp_path / ".claude" / ".dirty-files"
+        content = dirty_file.read_text()
+        assert "deleted.py" in content
+        assert "/dev/null" not in content
+
 
 class TestStopHook:
     """Tests for stop.py hook."""

@@ -60,6 +60,9 @@ def extract_files_from_bash(command: str, project_dir: str) -> list[str]:
     if command.startswith(skip_prefixes):
         return []
 
+    # Shell operators that chain commands - stop parsing at these
+    shell_operators = ("&&", "||", ";", "|", ">", ">>", "<", "2>", "2>&1")
+
     files = []
 
     try:
@@ -72,14 +75,18 @@ def extract_files_from_bash(command: str, project_dir: str) -> list[str]:
 
         # Handle: rm, rm -rf, rm -f, etc.
         if cmd == "rm":
-            # Skip flags, collect file arguments
+            # Skip flags, collect file arguments until shell operator
             for token in tokens[1:]:
+                if token in shell_operators:
+                    break  # Stop at command chaining operator
                 if not token.startswith("-"):
                     files.append(token)
 
         # Handle: git rm
         elif cmd == "git" and len(tokens) > 1 and tokens[1] == "rm":
             for token in tokens[2:]:
+                if token in shell_operators:
+                    break
                 if not token.startswith("-"):
                     files.append(token)
 
@@ -87,6 +94,8 @@ def extract_files_from_bash(command: str, project_dir: str) -> list[str]:
         elif cmd == "mv" and len(tokens) >= 3:
             # Skip flags, get first non-flag arg (source)
             for token in tokens[1:]:
+                if token in shell_operators:
+                    break
                 if not token.startswith("-"):
                     files.append(token)
                     break  # Only track source, not destination
@@ -94,13 +103,16 @@ def extract_files_from_bash(command: str, project_dir: str) -> list[str]:
         # Handle: git mv (track source file only)
         elif cmd == "git" and len(tokens) > 2 and tokens[1] == "mv":
             for token in tokens[2:]:
+                if token in shell_operators:
+                    break
                 if not token.startswith("-"):
                     files.append(token)
                     break
 
         # Handle: unlink
         elif cmd == "unlink" and len(tokens) > 1:
-            files.append(tokens[1])
+            if tokens[1] not in shell_operators:
+                files.append(tokens[1])
 
     except ValueError:
         # shlex.split failed (unbalanced quotes, etc.) - skip
