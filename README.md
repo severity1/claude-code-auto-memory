@@ -2,7 +2,7 @@
 
 **Your CLAUDE.md, always in sync.** Zero tokens. Zero config. Just works.
 
-A Claude Code plugin that watches what you edit, delete, and move - then quietly updates your project documentation in the background. No manual maintenance needed.
+A Claude Code plugin that watches what Claude Code edits, deletes, and moves - then quietly updates your project documentation in the background. No manual maintenance needed.
 
 [![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-Plugin-blueviolet)](https://claude.ai/code)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -22,10 +22,10 @@ CLAUDE.md files become stale as codebases evolve:
 
 ## The Solution
 
-claude-code-auto-memory automatically updates CLAUDE.md when you make changes - with **zero token overhead** in your main conversation.
+claude-code-auto-memory automatically updates CLAUDE.md when Claude Code makes changes - with **zero token overhead** in your main conversation.
 
 ```
-You edit code -> Plugin tracks changes -> Isolated agent updates docs -> Context stays fresh
+Claude Code edits code -> Plugin tracks changes -> Isolated agent updates docs -> Context stays fresh
 ```
 
 ## Features
