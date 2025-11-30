@@ -9,4 +9,4 @@ Check and report:
 2. **Last sync**: Modification timestamp of CLAUDE.md
 3. **CLAUDE.md locations**: All CLAUDE.md files found in the project
 
-If there are pending changes, offer to run `/memory-calibrate` to process them.
+If there are pending changes, offer to run `/auto-memory:calibrate` to process them.
