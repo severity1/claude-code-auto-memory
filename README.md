@@ -216,10 +216,9 @@ claude-code-auto-memory/
 │   ├── memory-processor/     # Update processing
 │   └── codebase-analyzer/    # Init wizard
 ├── commands/
-│   └── auto-memory/
-│       ├── init.md
-│       ├── calibrate.md
-│       └── status.md
+│   ├── init.md               # /auto-memory:init
+│   ├── calibrate.md          # /auto-memory:calibrate
+│   └── status.md             # /auto-memory:status
 └── tests/
 ```
 
