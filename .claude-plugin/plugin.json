@@ -5,5 +5,6 @@
   "author": {
     "name": "severity1"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "commands": ["./commands/auto-memory/"]
 }

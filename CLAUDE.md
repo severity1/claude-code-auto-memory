@@ -22,6 +22,7 @@ Watches what Claude Code edits, deletes, and moves - then quietly updates projec
 - `uv run mypy .` - Type checking in strict mode
 
 **Package**: Published as `claude-code-auto-memory` on PyPI with minimal dependencies (dev dependencies: pytest, pyyaml, ruff, mypy)
+**Plugin**: Version 0.4.0, plugin.json defines commands namespace at `./commands/auto-memory/`
 
 <!-- END AUTO-MANAGED -->
 
