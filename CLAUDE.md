@@ -5,9 +5,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 <!-- AUTO-MANAGED: project-description -->
 ## Overview
 
-**auto-memory** plugin - automatically maintains CLAUDE.md files as codebases evolve. Tagline: "Your CLAUDE.md, always in sync. Zero tokens. Zero config. Just works."
+**auto-memory** - automatically maintains CLAUDE.md files as codebases evolve. Tagline: "Your CLAUDE.md, always in sync. Minimal tokens. Zero config. Just works."
 
-Watches what you edit, delete, and move, then quietly updates project memory in the background. Uses PostToolUse hooks to track Edit/Write/Bash operations (including rm, mv, git rm, git mv, unlink), stores changes in .dirty-files, then triggers isolated memory-updater agent to process and update memory sections with detected patterns, conventions, and architecture insights. Zero manual maintenance needed.
+Watches what Claude Code edits, deletes, and moves - then quietly updates project memory in the background. Uses PostToolUse hooks to track Edit/Write/Bash operations (including rm, mv, git rm, git mv, unlink), stores changes in .dirty-files, then triggers isolated memory-updater agent to process and update memory sections with detected patterns, conventions, and architecture insights. Processing runs in separate context window, consuming no main session tokens.
 
 <!-- END AUTO-MANAGED -->
 
@@ -37,9 +37,10 @@ claude-code-auto-memory/
 │   ├── codebase-analyzer/  # Analyzes codebase, generates CLAUDE.md templates
 │   └── memory-processor/   # Processes file changes, updates CLAUDE.md sections
 ├── commands/          # Slash commands (markdown files)
-│   ├── memory-init.md     # Initialize CLAUDE.md structure
-│   ├── memory-calibrate.md # Force recalibration
-│   └── memory-status.md   # Show sync status
+│   └── auto-memory/      # Namespaced commands (/auto-memory:*)
+│       ├── init.md          # Initialize CLAUDE.md structure
+│       ├── calibrate.md     # Force recalibration
+│       └── status.md        # Show sync status
 ├── agents/            # Agent definitions
 │   └── memory-updater.md  # Orchestrates CLAUDE.md updates
 ├── hooks/             # Hook configuration

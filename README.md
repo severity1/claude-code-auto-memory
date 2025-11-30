@@ -58,12 +58,12 @@ claude plugin install auto-memory@local-dev
 
 ## Commands
 
-### `/memory-init`
+### `/auto-memory:init`
 
 Initialize CLAUDE.md structure for your project with an interactive wizard.
 
 ```
-/memory-init
+/auto-memory:init
 ```
 
 The wizard will:
@@ -73,20 +73,20 @@ The wizard will:
 4. Present findings for your approval
 5. Generate CLAUDE.md with auto-managed sections
 
-### `/memory-calibrate`
+### `/auto-memory:calibrate`
 
 Force a full recalibration of all CLAUDE.md files.
 
 ```
-/memory-calibrate
+/auto-memory:calibrate
 ```
 
-### `/memory-status`
+### `/auto-memory:status`
 
 Show current sync status and pending changes.
 
 ```
-/memory-status
+/auto-memory:status
 ```
 
 ## How It Works
@@ -216,9 +216,10 @@ claude-code-auto-memory/
 │   ├── memory-processor/     # Update processing
 │   └── codebase-analyzer/    # Init wizard
 ├── commands/
-│   ├── memory-init.md
-│   ├── memory-calibrate.md
-│   └── memory-status.md
+│   └── auto-memory/
+│       ├── init.md
+│       ├── calibrate.md
+│       └── status.md
 └── tests/
 ```
 

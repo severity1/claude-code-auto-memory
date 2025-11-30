@@ -119,19 +119,19 @@ class TestCommandsConfiguration:
 
     @pytest.fixture
     def commands_dir(self):
-        return PROJECT_ROOT / "commands"
+        return PROJECT_ROOT / "commands" / "auto-memory"
 
-    def test_memory_init_exists(self, commands_dir):
-        """memory-init command exists."""
-        assert (commands_dir / "memory-init.md").exists()
+    def test_init_exists(self, commands_dir):
+        """init command exists."""
+        assert (commands_dir / "init.md").exists()
 
-    def test_memory_calibrate_exists(self, commands_dir):
-        """memory-calibrate command exists."""
-        assert (commands_dir / "memory-calibrate.md").exists()
+    def test_calibrate_exists(self, commands_dir):
+        """calibrate command exists."""
+        assert (commands_dir / "calibrate.md").exists()
 
-    def test_memory_status_exists(self, commands_dir):
-        """memory-status command exists."""
-        assert (commands_dir / "memory-status.md").exists()
+    def test_status_exists(self, commands_dir):
+        """status command exists."""
+        assert (commands_dir / "status.md").exists()
 
     def test_commands_have_yaml(self, commands_dir):
         """All commands have valid YAML frontmatter."""

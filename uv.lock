@@ -8,7 +8,7 @@ resolution-markers = [
 
 [[package]]
 name = "claude-code-auto-memory"
-version = "0.2.0"
+version = "0.4.0"
 source = { editable = "." }
 
 [package.optional-dependencies]
