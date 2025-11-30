@@ -1,7 +1,7 @@
 {
   "name": "auto-memory",
   "description": "Automatically maintains CLAUDE.md files as codebases evolve using hooks, agents, and skills",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "author": {
     "name": "severity1"
   },
