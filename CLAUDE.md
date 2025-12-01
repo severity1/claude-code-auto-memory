@@ -78,7 +78,7 @@ claude-code-auto-memory/
 - **Manual Sections**: Use `<!-- MANUAL -->` markers for user-editable content
 - **Skill Templates**: Use `{{PLACEHOLDER}}` syntax for variable substitution
 - **File Tracking**: Dirty files stored in `.claude/.dirty-files`, one path per line
-- **Stop Hook UX**: Instructs Claude to read root CLAUDE.md after agent completes to refresh context
+- **Stop Hook UX**: Blocks at turn end if dirty files exist; instructs Claude to spawn memory-updater agent using Task tool with formatted file list; suggests reading root CLAUDE.md after agent completes to refresh context
 - **Test Coverage**: Use subprocess to invoke hooks, verify zero output behavior, test file filtering logic
 
 <!-- END AUTO-MANAGED -->
