@@ -255,15 +255,32 @@ def main():
     auto_memory_dir = Path(project_dir) / ".claude" / "auto-memory"
     auto_memory_dir.mkdir(parents=True, exist_ok=True)
 
-    # Write dirty files (with optional commit context inline)
+    # Read existing dirty files into a dict (path -> full line)
     dirty_file = auto_memory_dir / "dirty-files"
-    with open(dirty_file, "a") as f:
-        for file_path in trackable:
-            if commit_context:
-                # Format: /path/to/file [hash: message]
-                f.write(f"{file_path} [{commit_context['hash']}: {commit_context['message']}]\n")
-            else:
-                f.write(file_path + "\n")
+    existing: dict[str, str] = {}
+    if dirty_file.exists():
+        with open(dirty_file) as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                # Extract path (strip commit context if present)
+                path = line.split(" [")[0] if " [" in line else line
+                existing[path] = line
+
+    # Update or add entries
+    for file_path in trackable:
+        if commit_context:
+            # Always use commit context version (overwrites plain path)
+            existing[file_path] = f"{file_path} [{commit_context['hash']}: {commit_context['message']}]"
+        elif file_path not in existing:
+            # Only add if not already tracked
+            existing[file_path] = file_path
+
+    # Write back all entries
+    with open(dirty_file, "w") as f:
+        for line in existing.values():
+            f.write(line + "\n")
 
     # NO output - zero token cost
 
