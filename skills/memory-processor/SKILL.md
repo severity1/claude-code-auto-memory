@@ -25,6 +25,13 @@ This plugin manages **project-level** CLAUDE.md files only:
 - **Use structure**: Bullet points under descriptive markdown headings
 - **Stay current**: Remove outdated information when updating
 - **Avoid generic**: No "follow best practices" or "write clean code"
+- **Exclude moving targets**: Never include ephemeral data that changes frequently:
+  - Version numbers (e.g., "v1.2.3", "0.6.0")
+  - Test counts or coverage percentages (e.g., "74 tests", "85% coverage")
+  - Progress metrics (e.g., "3/5 complete", "TODO: 12 items")
+  - Dates or timestamps (e.g., "last updated 2024-01-15")
+  - Line counts or file sizes
+  - Any metrics that become stale after each commit
 
 ### Import System
 - Syntax: `@path/to/import` or `@~/path/from/home`
