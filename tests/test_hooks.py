@@ -32,7 +32,7 @@ class TestPostToolUseHook:
         )
 
     def test_creates_dirty_file(self, tmp_path):
-        """Hook creates .claude/.dirty-files if it doesn't exist."""
+        """Hook creates .claude/auto-memory/dirty-files if it doesn't exist."""
         file_path = str(tmp_path / "file.py")
         env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
         result = subprocess.run(

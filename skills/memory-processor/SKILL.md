@@ -9,6 +9,8 @@ Process changed files and update relevant CLAUDE.md sections following official 
 
 ## Guidelines
 
+**MANDATORY**: All rules below must be followed exactly. Violations produce incorrect CLAUDE.md content.
+
 @../shared/references/guidelines.md
 
 ## Algorithm

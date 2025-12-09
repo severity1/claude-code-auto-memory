@@ -23,6 +23,18 @@ Save the selection to `.claude/auto-memory/config.json`:
 }
 ```
 
+Also ensure `.gitignore` includes the dirty-files tracking file:
+1. Check if `.gitignore` exists in the project root
+2. If it exists, check if it already contains `.claude/auto-memory/dirty-files`
+3. If not present, append the entry under a `# Claude Code auto-memory` comment section
+4. If `.gitignore` doesn't exist, create it with the entry
+
+Example addition to `.gitignore`:
+```
+# Claude Code auto-memory
+.claude/auto-memory/dirty-files
+```
+
 ### Step 2: Analyze Codebase
 
 Invoke the `codebase-analyzer` skill to:

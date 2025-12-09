@@ -3,7 +3,7 @@
 
 Fires after Edit, Write, or Bash tool execution. Appends changed file
 paths to .claude/auto-memory/dirty-files for batch processing at turn end.
-Produces no output to maintain zero token cost.
+Produces no output to maintain zero token cost (critical for performance).
 
 Supports configurable trigger modes:
 - default: Track Edit/Write/Bash operations (current behavior)
@@ -96,8 +96,8 @@ def should_track(file_path: str, project_dir: str) -> bool:
 def extract_files_from_bash(command: str, project_dir: str) -> list[str]:
     """Extract file paths from Bash commands that modify files.
 
-    Detects: rm, rm -rf, mv, git rm, git mv, unlink
-    Returns list of file paths that should be tracked.
+    Detects file-modifying commands: rm, rm -rf, mv, git rm, git mv, unlink.
+    Returns list of absolute file paths that should be tracked.
     """
     if not command:
         return []
@@ -230,8 +230,10 @@ def extract_files_from_bash(command: str, project_dir: str) -> list[str]:
 
 
 def main():
-    project_dir = os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd())
+    project_dir = os.environ.get("CLAUDE_PROJECT_DIR", "")
 
+    # CLAUDE_PROJECT_DIR is required - don't use cwd fallback as it may be wrong
+    # (e.g., plugin cache directory instead of user's project)
     if not project_dir:
         return
 
@@ -293,12 +295,9 @@ def main():
     if not trackable:
         return
 
-    # Ensure auto-memory directory exists
-    auto_memory_dir = Path(project_dir) / ".claude" / "auto-memory"
-    auto_memory_dir.mkdir(parents=True, exist_ok=True)
-
     # Read existing dirty files into a dict (path -> full line)
-    dirty_file = auto_memory_dir / "dirty-files"
+    dirty_file = Path(project_dir) / ".claude" / "auto-memory" / "dirty-files"
+    dirty_file.parent.mkdir(parents=True, exist_ok=True)
     existing: dict[str, str] = {}
     if dirty_file.exists():
         with open(dirty_file) as f:

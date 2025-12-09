@@ -9,6 +9,8 @@ Analyze project structure and generate CLAUDE.md files interactively.
 
 ## Guidelines
 
+**MANDATORY**: All rules below must be followed exactly. Violations produce incorrect CLAUDE.md content.
+
 @../shared/references/guidelines.md
 
 ## Algorithm

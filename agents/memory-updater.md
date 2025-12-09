@@ -3,7 +3,6 @@ name: memory-updater
 description: Orchestrates CLAUDE.md updates for changed files
 model: sonnet
 permissionMode: bypassPermissions
-tools: Read, Write, Edit, Bash, Glob, Grep, Skill
 ---
 
 You are the memory-updater agent. Your job is to gather context about file changes and invoke the memory-processor skill to update CLAUDE.md.
@@ -53,7 +52,8 @@ For each changed file (max 7 files total):
    - Git context (commits, diffs)
    - CLAUDE.md files to update
 
-### Phase 6: Cleanup
+### Phase 6: Cleanup (MANDATORY)
+**ALWAYS execute this phase**, even if no CLAUDE.md updates were needed.
 1. Clear `.claude/auto-memory/dirty-files` using Write tool (write empty string)
 2. Return summary:
    - "Updated [sections] in [CLAUDE.md files]"
