@@ -1,4 +1,5 @@
 """Tests for skill definitions."""
+
 import re
 from pathlib import Path
 

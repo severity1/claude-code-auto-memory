@@ -26,6 +26,25 @@ This plugin manages **project-level** CLAUDE.md files only:
   - Line counts or file sizes
   - Any metrics that become stale after each commit
 
+## Marker Format
+
+CLAUDE.md files use HTML comment markers for selective updates:
+
+```markdown
+<!-- AUTO-MANAGED: section-name -->
+Content that will be automatically updated
+<!-- END AUTO-MANAGED -->
+
+<!-- MANUAL -->
+Content that will never be touched
+<!-- END MANUAL -->
+```
+
+**CRITICAL**: Use the EXACT format above. Do NOT use variations:
+- `<!-- BEGIN AUTO-MANAGED: name -->` - WRONG (no BEGIN prefix)
+- `<!-- END AUTO-MANAGED: name -->` - WRONG (no name in closing tag)
+- `<!-- AUTO-MANAGED section-name -->` - WRONG (missing colon after AUTO-MANAGED)
+
 ## Import System
 
 - Syntax: `@path/to/import` or `@~/path/from/home`

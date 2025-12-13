@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
-"""Stop hook - triggers agent spawn if dirty files exist.
+"""Stop hook - triggers memory-updater agent spawn when dirty files exist.
 
 This hook fires at the end of Claude's turn. If files were modified
-during the turn, it blocks and instructs Claude to spawn the
-memory-updater agent for CLAUDE.md updates.
+during the turn (tracked in .claude/auto-memory/dirty-files), it blocks
+and instructs Claude to spawn the memory-updater agent for CLAUDE.md updates.
+
+The hook outputs JSON with decision: "block" to prevent Claude from stopping
+until the memory update is complete.
 """
+
 import json
 import os
 import sys

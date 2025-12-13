@@ -5,23 +5,38 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 <!-- AUTO-MANAGED: project-description -->
 ## Overview
 
-**auto-memory** - Automatically maintains CLAUDE.md files as codebases evolve. Tagline: "Your CLAUDE.md, always in sync. Minimal tokens. Zero config. Just works."
+**claude-code-auto-memory** - A Claude Code plugin that automatically maintains CLAUDE.md files as codebases evolve. Tracks file changes via hooks, spawns agents to update memory, and provides skills for codebase analysis.
 
-Watches what Claude Code edits, deletes, and moves - then quietly updates project memory in the background. Uses PostToolUse hooks to track Edit/Write/Bash operations (including rm, mv, git rm, git mv, unlink), stores changes in .claude/auto-memory/dirty-files, then triggers isolated memory-updater agent to process and update memory sections. Processing runs in separate context window, consuming no main session tokens.
+Key features:
+- Real-time file tracking via PostToolUse hooks
+- Stop hook integration to trigger memory updates
+- Codebase analyzer skill for initial setup
+- Memory processor skill for ongoing updates
 
 <!-- END AUTO-MANAGED -->
 
 <!-- AUTO-MANAGED: build-commands -->
 ## Build & Development Commands
 
-- `uv sync` - Install dependencies (uses uv package manager)
-- `uv run pytest` - Run full test suite
-- `uv run pytest tests/test_hooks.py -v` - Run specific test file with verbose output
-- `uv run ruff check .` - Lint code (E, F, I, N, W, UP rules, 100 char line length)
-- `uv run ruff format .` - Format code to style standards
-- `uv run mypy .` - Type checking in strict mode
+```bash
+# Install dependencies
+uv sync
 
-**Package**: Published as `claude-code-auto-memory` on PyPI with minimal dependencies
+# Run tests
+uv run pytest tests/ -v
+
+# Run single test file
+uv run pytest tests/test_hooks.py -v
+
+# Lint code
+uv run ruff check .
+
+# Format code
+uv run ruff format .
+
+# Type check
+uv run mypy scripts/
+```
 
 <!-- END AUTO-MANAGED -->
 
@@ -29,62 +44,81 @@ Watches what Claude Code edits, deletes, and moves - then quietly updates projec
 ## Architecture
 
 ```
-claude-code-auto-memory/
-├── scripts/           # Python hook scripts (see scripts/CLAUDE.md)
-│   ├── post-tool-use.py  # Tracks edited files; detects git commits for context enrichment
-│   └── stop.py           # Blocks stop if dirty files exist, triggers memory-updater
-├── skills/            # Skill definitions (SKILL.md files)
-│   ├── codebase-analyzer/  # Analyzes codebase, generates CLAUDE.md templates
-│   ├── memory-processor/   # Processes file changes, updates CLAUDE.md sections
-│   └── shared/references/  # Shared reference files for skills
-├── commands/          # Slash commands (markdown files)
-│   ├── init.md               # /auto-memory:init - Initialize auto-memory plugin
-│   ├── calibrate.md          # /auto-memory:calibrate - Full codebase recalibration
-│   ├── sync.md               # /auto-memory:sync - Sync manual file changes
-│   └── status.md             # /auto-memory:status - Show memory status
-├── agents/            # Agent definitions
-│   └── memory-updater.md  # Orchestrates CLAUDE.md updates with 6-phase workflow
-├── hooks/             # Hook configuration
-│   └── hooks.json        # PostToolUse and Stop hook definitions
-└── tests/             # pytest test suite (see tests/CLAUDE.md)
+.claude-plugin/          # Plugin manifest
+  plugin.json            # Plugin metadata and version
+agents/
+  memory-updater.md      # Agent that updates CLAUDE.md files
+commands/
+  init.md                # /auto-memory:init command
+  calibrate.md           # /auto-memory:calibrate command
+  status.md              # /auto-memory:status command
+  sync.md                # /auto-memory:sync command
+hooks/
+  hooks.json             # Hook registration
+scripts/
+  post-tool-use.py       # Tracks file edits to dirty-files
+  stop.py                # Triggers memory-updater agent spawn
+skills/
+  codebase-analyzer/     # Initial CLAUDE.md generation
+  memory-processor/      # Ongoing CLAUDE.md updates
+  shared/                # Shared references
+tests/
+  test_hooks.py          # Hook behavior tests
+  test_integration.py    # Plugin structure tests
+  test_skills.py         # Skill validation tests
 ```
 
-**Data Flow**: Edit/Write/Bash -> post-tool-use.py -> .claude/auto-memory/dirty-files -> stop.py -> memory-updater agent -> memory-processor skill -> CLAUDE.md updates
-
-**State Files** (in `.claude/auto-memory/`):
-- `dirty-files` - Pending file list with optional inline commit context: `/path [hash: message]`
-- `config.json` - Trigger mode configuration (default or gitmode)
+Data flow:
+1. User edits files via Edit/Write tools
+2. PostToolUse hook appends paths to `.claude/auto-memory/dirty-files`
+3. Stop hook detects dirty files, blocks Claude, requests agent spawn
+4. memory-updater agent processes files and updates CLAUDE.md
+5. Dirty files cleared after processing
 
 <!-- END AUTO-MANAGED -->
 
 <!-- AUTO-MANAGED: conventions -->
 ## Code Conventions
 
-- **Python**: Target Python 3.9+, use type hints, strict mypy mode
-- **Line length**: 100 characters max (ruff configuration)
-- **Linting**: Use ruff (E, F, I, N, W, UP rules)
-- **Imports**: Sorted alphabetically (ruff I rules)
-- **Naming**: snake_case for functions/variables, PascalCase for classes
-- **Docstrings**: Triple-quoted, describe purpose at module/function level
-- **Testing**: pytest with test_ prefix (see tests/CLAUDE.md)
-- **Command YAML**: Frontmatter requires `description` field; `name` is optional
+- **Python**: 3.9+ with type hints, snake_case naming
+- **Imports**: Group stdlib, then third-party, then local
+- **Docstrings**: Module-level docstrings explain purpose
+- **Hooks**: Zero output for PostToolUse (token cost), JSON output for Stop
+- **Skills/Commands**: YAML frontmatter with name/description
+- **Line length**: 100 characters (ruff config)
+- **Testing**: pytest with descriptive test names (test_verb_condition)
 
 <!-- END AUTO-MANAGED -->
 
 <!-- AUTO-MANAGED: patterns -->
 ## Detected Patterns
 
-- **Hook Scripts**: Produce no stdout output (minimal token cost design)
-- **File Filtering**: Exclude `.claude/` directory and CLAUDE.md files to prevent infinite loops
-- **Bash Operation Tracking**: Detects rm, mv, git rm, git mv, unlink; use `shlex.split()` for parsing
-- **Command Skip List**: Filter read-only commands before processing
-- **Path Resolution**: Convert relative paths to absolute, then resolve symlinks
-- **CLAUDE.md Markers**: Use `<!-- AUTO-MANAGED: section-name -->` and `<!-- END AUTO-MANAGED -->`
-- **Manual Sections**: Use `<!-- MANUAL -->` markers for user-editable content
-- **Dirty File Format**: One path per line, optional inline commit context: `/path [hash: message]`
-- **Deduplication**: Read into dict (path -> full line), commit context overwrites plain paths
-- **Trigger Modes**: `default` tracks all operations; `gitmode` only triggers on git commits
-- **Git Commit Enrichment**: Enrich paths with inline commit context for semantic updates
+- **Hook Pattern**: Silent tracking (PostToolUse) + blocking decision (Stop)
+- **Dirty File Pattern**: Append-only tracking, batch processing at turn end
+- **Skill Pattern**: YAML frontmatter + markdown body with algorithm sections
+- **Template Pattern**: AUTO-MANAGED markers for updatable sections
+- **Config Pattern**: JSON config in `.claude/auto-memory/config.json`
+
+<!-- END AUTO-MANAGED -->
+
+<!-- AUTO-MANAGED: git-insights -->
+## Git Insights
+
+Recent design decisions from commit history:
+- Template enforcement added to ensure consistent CLAUDE.md structure
+- Git commit context enrichment for better change tracking
+- Configurable trigger modes (default vs gitmode)
+
+<!-- END AUTO-MANAGED -->
+
+<!-- AUTO-MANAGED: best-practices -->
+## Best Practices
+
+From Claude Code documentation:
+- Keep CLAUDE.md concise and focused on actionable guidance
+- Use AUTO-MANAGED markers for sections that should be auto-updated
+- Use MANUAL section for custom notes that persist across updates
+- Subtree CLAUDE.md files inherit from root and add module-specific context
 
 <!-- END AUTO-MANAGED -->
 

@@ -1,4 +1,5 @@
 """Integration tests for auto-memory plugin."""
+
 import json
 import re
 from pathlib import Path

@@ -29,5 +29,5 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
-# Project specific
-dirty-files
+# Claude Code auto-memory
+.claude/auto-memory/dirty-files

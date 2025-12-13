@@ -1,4 +1,5 @@
 """Tests for hook scripts."""
+
 import json
 import os
 import subprocess
@@ -14,20 +15,24 @@ class TestPostToolUseHook:
 
     def _make_tool_input(self, file_path: str, tool_name: str = "Edit") -> str:
         """Create JSON input for post-tool-use hook (Edit/Write tools)."""
-        return json.dumps({
-            "tool_name": tool_name,
-            "tool_input": {"file_path": file_path},
-        })
+        return json.dumps(
+            {
+                "tool_name": tool_name,
+                "tool_input": {"file_path": file_path},
+            }
+        )
 
     def _make_bash_input(self, command: str) -> str:
         """Create JSON input for Bash tool."""
-        return json.dumps({
-            "tool_name": "Bash",
-            "tool_input": {"command": command},
-        })
+        return json.dumps(
+            {
+                "tool_name": "Bash",
+                "tool_input": {"command": command},
+            }
+        )
 
     def test_creates_dirty_file(self, tmp_path):
-        """Hook creates .claude/.dirty-files if it doesn't exist."""
+        """Hook creates .claude/auto-memory/dirty-files if it doesn't exist."""
         file_path = str(tmp_path / "file.py")
         env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
         result = subprocess.run(
@@ -468,10 +473,12 @@ class TestGitCommitContext:
 
     def _make_bash_input(self, command: str) -> str:
         """Create JSON input for Bash tool."""
-        return json.dumps({
-            "tool_name": "Bash",
-            "tool_input": {"command": command},
-        })
+        return json.dumps(
+            {
+                "tool_name": "Bash",
+                "tool_input": {"command": command},
+            }
+        )
 
     def _init_git_repo(self, tmp_path):
         """Initialize a git repo with an initial commit.
@@ -505,6 +512,7 @@ class TestGitCommitContext:
         # Import the function directly
         sys.path.insert(0, str(SCRIPTS_DIR))
         from importlib import import_module
+
         post_tool_use = import_module("post-tool-use")
 
         files, context = post_tool_use.handle_git_commit(str(tmp_path))
@@ -534,6 +542,7 @@ class TestGitCommitContext:
         # Import the function directly
         sys.path.insert(0, str(SCRIPTS_DIR))
         from importlib import import_module
+
         post_tool_use = import_module("post-tool-use")
 
         files, context = post_tool_use.handle_git_commit(str(tmp_path))

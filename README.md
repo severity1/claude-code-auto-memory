@@ -42,8 +42,8 @@ Claude Code edits code -> Plugin tracks changes -> Isolated agent updates memory
 ### From Marketplace
 
 ```bash
-claude plugin marketplace add severity1/claude-code-marketplace
-claude plugin install auto-memory@claude-code-marketplace
+claude plugin marketplace add severity1/severity1-marketplace
+claude plugin install auto-memory@severity1-marketplace
 ```
 
 ### Local Development
@@ -109,7 +109,7 @@ sequenceDiagram
     participant User
     participant Claude as Claude Code
     participant PostHook as PostToolUse Hook
-    participant DirtyFiles as .dirty-files
+    participant DirtyFiles as dirty-files
     participant StopHook as Stop Hook
     participant Agent as memory-updater Agent
     participant Skill as memory-processor Skill
@@ -145,7 +145,7 @@ sequenceDiagram
 PostToolUse Hook (Edit|Write|Bash)
     |
     v (append file paths)
-.claude/.dirty-files
+.claude/auto-memory/dirty-files
     |
     v (end of turn)
 Stop Hook
@@ -215,20 +215,17 @@ Control when auto-memory triggers CLAUDE.md updates:
 ### Git Commit Enrichment
 
 When a `git commit` is detected (in both modes), auto-memory captures the commit context:
-- Commit hash and message are saved to `.claude/auto-memory/commit-context.json`
+- Commit hash and message are stored inline with each file path: `/path/to/file [hash: message]`
 - The memory-updater agent uses this to provide semantic context: "Changes from commit [hash]: [message]"
 
 This helps CLAUDE.md updates reflect the *intent* behind changes, not just which files changed.
 
 ### Data Files
 
-All auto-memory state is stored in `.claude/auto-memory/`:
-
-| File | Purpose |
-|------|---------|
-| `dirty-files` | List of files pending CLAUDE.md update |
-| `config.json` | Trigger mode configuration |
-| `commit-context.json` | Last commit hash + message (temporary) |
+| File | Location | Purpose |
+|------|----------|---------|
+| `dirty-files` | `.claude/auto-memory/` | List of files pending CLAUDE.md update |
+| `config.json` | `.claude/auto-memory/` | Trigger mode configuration |
 
 ## Development
 
