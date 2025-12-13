@@ -69,11 +69,15 @@ tests/
 ```
 
 Data flow:
-1. User edits files via Edit/Write tools
+1. User edits files via Edit/Write tools or git operations (rm, mv)
 2. PostToolUse hook appends paths to `.claude/auto-memory/dirty-files`
 3. Stop hook detects dirty files, blocks Claude, requests agent spawn
 4. memory-updater agent processes files and updates CLAUDE.md
 5. Dirty files cleared after processing
+
+Configuration:
+- Trigger modes: `default` (after every turn) or `gitmode` (only after git commits)
+- Config stored in `.claude/auto-memory/config.json`
 
 <!-- END AUTO-MANAGED -->
 
@@ -98,6 +102,7 @@ Data flow:
 - **Skill Pattern**: YAML frontmatter + markdown body with algorithm sections
 - **Template Pattern**: AUTO-MANAGED markers for updatable sections
 - **Config Pattern**: JSON config in `.claude/auto-memory/config.json`
+- **Inline Commit Context**: Commit hash and message stored inline with file paths in dirty-files (`/path/to/file [hash: message]`)
 
 <!-- END AUTO-MANAGED -->
 
