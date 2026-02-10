@@ -338,13 +338,13 @@ class TestPostToolUseHook:
 
 
 class TestStopHook:
-    """Tests for stop.py hook."""
+    """Tests for trigger.py Stop hook behavior."""
 
     def test_passes_when_empty(self, tmp_path):
         """Hook passes through when no dirty files exist."""
         env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
         result = subprocess.run(
-            [sys.executable, SCRIPTS_DIR / "stop.py"],
+            [sys.executable, SCRIPTS_DIR / "trigger.py"],
             env={**os.environ, **env},
             input="{}",
             capture_output=True,
@@ -361,7 +361,7 @@ class TestStopHook:
 
         env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
         result = subprocess.run(
-            [sys.executable, SCRIPTS_DIR / "stop.py"],
+            [sys.executable, SCRIPTS_DIR / "trigger.py"],
             env={**os.environ, **env},
             input='{"stop_hook_active": true}',
             capture_output=True,
@@ -378,7 +378,7 @@ class TestStopHook:
 
         env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
         result = subprocess.run(
-            [sys.executable, SCRIPTS_DIR / "stop.py"],
+            [sys.executable, SCRIPTS_DIR / "trigger.py"],
             env={**os.environ, **env},
             input="{}",
             capture_output=True,
@@ -397,7 +397,7 @@ class TestStopHook:
 
         env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
         result = subprocess.run(
-            [sys.executable, SCRIPTS_DIR / "stop.py"],
+            [sys.executable, SCRIPTS_DIR / "trigger.py"],
             env={**os.environ, **env},
             input="{}",
             capture_output=True,
@@ -415,7 +415,7 @@ class TestStopHook:
 
         env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
         result = subprocess.run(
-            [sys.executable, SCRIPTS_DIR / "stop.py"],
+            [sys.executable, SCRIPTS_DIR / "trigger.py"],
             env={**os.environ, **env},
             input="{}",
             capture_output=True,
@@ -434,7 +434,7 @@ class TestStopHook:
 
         env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
         result = subprocess.run(
-            [sys.executable, SCRIPTS_DIR / "stop.py"],
+            [sys.executable, SCRIPTS_DIR / "trigger.py"],
             env={**os.environ, **env},
             input="{}",
             capture_output=True,
@@ -456,7 +456,7 @@ class TestStopHook:
 
         env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
         result = subprocess.run(
-            [sys.executable, SCRIPTS_DIR / "stop.py"],
+            [sys.executable, SCRIPTS_DIR / "trigger.py"],
             env={**os.environ, **env},
             input="not valid json",
             capture_output=True,
@@ -466,6 +466,197 @@ class TestStopHook:
         assert result.returncode == 0
         output = json.loads(result.stdout)
         assert output["decision"] == "block"
+
+    def test_output_includes_task_params(self, tmp_path):
+        """Stop output includes run_in_background and bypassPermissions instructions."""
+        dirty_file = tmp_path / ".claude" / "auto-memory" / "dirty-files"
+        dirty_file.parent.mkdir(parents=True)
+        dirty_file.write_text("/path/to/file.py\n")
+
+        env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
+        result = subprocess.run(
+            [sys.executable, SCRIPTS_DIR / "trigger.py"],
+            env={**os.environ, **env},
+            input="{}",
+            capture_output=True,
+            text=True,
+        )
+        output = json.loads(result.stdout)
+        assert "run_in_background" in output["reason"]
+        assert "bypassPermissions" in output["reason"]
+
+
+class TestPreToolUseHook:
+    """Tests for trigger.py PreToolUse hook behavior."""
+
+    def _make_pre_tool_input(self, command: str) -> str:
+        """Create JSON input simulating PreToolUse for a Bash command."""
+        return json.dumps(
+            {
+                "hook_event_name": "PreToolUse",
+                "tool_input": {"command": command},
+            }
+        )
+
+    def _setup_gitmode(self, tmp_path):
+        """Set up gitmode configuration."""
+        config_dir = tmp_path / ".claude" / "auto-memory"
+        config_dir.mkdir(parents=True, exist_ok=True)
+        config_file = config_dir / "config.json"
+        config_file.write_text(json.dumps({"triggerMode": "gitmode"}))
+
+    def test_passthrough_in_default_mode(self, tmp_path):
+        """PreToolUse passes through in default trigger mode."""
+        dirty_file = tmp_path / ".claude" / "auto-memory" / "dirty-files"
+        dirty_file.parent.mkdir(parents=True, exist_ok=True)
+        dirty_file.write_text("/path/to/file.py\n")
+
+        env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
+        result = subprocess.run(
+            [sys.executable, SCRIPTS_DIR / "trigger.py"],
+            env={**os.environ, **env},
+            input=self._make_pre_tool_input("git commit -m 'test'"),
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0
+        assert result.stdout == ""
+
+    def test_passthrough_non_git_commit_in_gitmode(self, tmp_path):
+        """PreToolUse passes through for non-git-commit commands in gitmode."""
+        self._setup_gitmode(tmp_path)
+        dirty_file = tmp_path / ".claude" / "auto-memory" / "dirty-files"
+        dirty_file.write_text("/path/to/file.py\n")
+
+        env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
+        result = subprocess.run(
+            [sys.executable, SCRIPTS_DIR / "trigger.py"],
+            env={**os.environ, **env},
+            input=self._make_pre_tool_input("git status"),
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0
+        assert result.stdout == ""
+
+    def test_denies_git_commit_with_dirty_files_in_gitmode(self, tmp_path):
+        """PreToolUse denies git commit in gitmode when dirty files exist."""
+        self._setup_gitmode(tmp_path)
+        dirty_file = tmp_path / ".claude" / "auto-memory" / "dirty-files"
+        dirty_file.write_text("/path/to/file.py\n")
+
+        env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
+        result = subprocess.run(
+            [sys.executable, SCRIPTS_DIR / "trigger.py"],
+            env={**os.environ, **env},
+            input=self._make_pre_tool_input("git commit -m 'test'"),
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0
+        output = json.loads(result.stdout)
+        hook_output = output["hookSpecificOutput"]
+        assert hook_output["hookEventName"] == "PreToolUse"
+        assert hook_output["permissionDecision"] == "deny"
+        assert "memory-updater" in hook_output["permissionDecisionReason"]
+
+    def test_passthrough_git_commit_no_dirty_files_in_gitmode(self, tmp_path):
+        """PreToolUse passes through git commit in gitmode when no dirty files."""
+        self._setup_gitmode(tmp_path)
+
+        env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
+        result = subprocess.run(
+            [sys.executable, SCRIPTS_DIR / "trigger.py"],
+            env={**os.environ, **env},
+            input=self._make_pre_tool_input("git commit -m 'test'"),
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0
+        assert result.stdout == ""
+
+    def test_deny_output_includes_task_params(self, tmp_path):
+        """PreToolUse deny output includes run_in_background and bypassPermissions."""
+        self._setup_gitmode(tmp_path)
+        dirty_file = tmp_path / ".claude" / "auto-memory" / "dirty-files"
+        dirty_file.write_text("/path/to/file.py\n")
+
+        env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
+        result = subprocess.run(
+            [sys.executable, SCRIPTS_DIR / "trigger.py"],
+            env={**os.environ, **env},
+            input=self._make_pre_tool_input("git commit -m 'test'"),
+            capture_output=True,
+            text=True,
+        )
+        output = json.loads(result.stdout)
+        reason = output["hookSpecificOutput"]["permissionDecisionReason"]
+        assert "run_in_background" in reason
+        assert "bypassPermissions" in reason
+
+
+class TestSubagentStopHook:
+    """Tests for trigger.py SubagentStop hook behavior."""
+
+    def test_clears_dirty_files_with_config(self, tmp_path):
+        """Clears dirty-files when config.json and dirty-files both present."""
+        config_dir = tmp_path / ".claude" / "auto-memory"
+        config_dir.mkdir(parents=True)
+        (config_dir / "config.json").write_text(json.dumps({"triggerMode": "default"}))
+        dirty_file = config_dir / "dirty-files"
+        dirty_file.write_text("/path/to/file.py\n")
+
+        env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
+        result = subprocess.run(
+            [sys.executable, SCRIPTS_DIR / "trigger.py"],
+            env={**os.environ, **env},
+            input=json.dumps({"hook_event_name": "SubagentStop"}),
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0
+        assert result.stdout == ""
+        assert dirty_file.read_text() == ""
+
+    def test_noop_when_no_config(self, tmp_path):
+        """Does nothing when config.json is missing (plugin not active)."""
+        dirty_dir = tmp_path / ".claude" / "auto-memory"
+        dirty_dir.mkdir(parents=True)
+        dirty_file = dirty_dir / "dirty-files"
+        dirty_file.write_text("/path/to/file.py\n")
+
+        env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
+        result = subprocess.run(
+            [sys.executable, SCRIPTS_DIR / "trigger.py"],
+            env={**os.environ, **env},
+            input=json.dumps({"hook_event_name": "SubagentStop"}),
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0
+        assert result.stdout == ""
+        # dirty-files should remain unchanged
+        assert dirty_file.read_text() == "/path/to/file.py\n"
+
+    def test_noop_when_dirty_files_empty(self, tmp_path):
+        """Does nothing when dirty-files is empty."""
+        config_dir = tmp_path / ".claude" / "auto-memory"
+        config_dir.mkdir(parents=True)
+        (config_dir / "config.json").write_text(json.dumps({"triggerMode": "default"}))
+        dirty_file = config_dir / "dirty-files"
+        dirty_file.write_text("")
+
+        env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
+        result = subprocess.run(
+            [sys.executable, SCRIPTS_DIR / "trigger.py"],
+            env={**os.environ, **env},
+            input=json.dumps({"hook_event_name": "SubagentStop"}),
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0
+        assert result.stdout == ""
+        assert dirty_file.read_text() == ""
 
 
 class TestGitCommitContext:

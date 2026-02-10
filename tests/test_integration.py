@@ -76,10 +76,28 @@ class TestHooksConfiguration:
         """Stop hook is configured."""
         assert "Stop" in hooks_json["hooks"]
 
+    def test_has_pre_tool_use_hook(self, hooks_json):
+        """PreToolUse hook is configured."""
+        assert "PreToolUse" in hooks_json["hooks"]
+
+    def test_pre_tool_use_matcher(self, hooks_json):
+        """PreToolUse hook has Bash matcher."""
+        pre_tool_use = hooks_json["hooks"]["PreToolUse"][0]
+        assert pre_tool_use["matcher"] == "Bash"
+
     def test_post_tool_use_matcher(self, hooks_json):
         """PostToolUse hook has Edit|Write|Bash matcher."""
         post_tool_use = hooks_json["hooks"]["PostToolUse"][0]
         assert post_tool_use["matcher"] == "Edit|Write|Bash"
+
+    def test_has_subagent_stop_hook(self, hooks_json):
+        """SubagentStop hook is configured."""
+        assert "SubagentStop" in hooks_json["hooks"]
+
+    def test_subagent_stop_matcher(self, hooks_json):
+        """SubagentStop hook has memory-updater matcher."""
+        subagent_stop = hooks_json["hooks"]["SubagentStop"][0]
+        assert subagent_stop["matcher"] == "memory-updater"
 
 
 class TestAgentConfiguration:
@@ -168,9 +186,9 @@ class TestFileStructure:
         """post-tool-use.py script exists."""
         assert (PROJECT_ROOT / "scripts" / "post-tool-use.py").exists()
 
-    def test_stop_script_exists(self):
-        """stop.py script exists."""
-        assert (PROJECT_ROOT / "scripts" / "stop.py").exists()
+    def test_trigger_script_exists(self):
+        """trigger.py script exists."""
+        assert (PROJECT_ROOT / "scripts" / "trigger.py").exists()
 
     def test_dev_marketplace_exists(self):
         """.dev-marketplace directory exists for local development."""

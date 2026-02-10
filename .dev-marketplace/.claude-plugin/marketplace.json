@@ -6,7 +6,7 @@
   "plugins": [
     {
       "name": "auto-memory",
-      "source": "./../../"
+      "source": "./../"
     }
   ]
 }
