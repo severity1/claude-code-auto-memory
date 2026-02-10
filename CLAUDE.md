@@ -57,13 +57,14 @@ hooks/
   hooks.json             # Hook registration
 scripts/
   post-tool-use.py       # Tracks file edits to dirty-files
-  stop.py                # Triggers memory-updater agent spawn
+  trigger.py             # Consolidated handler for PreToolUse, Stop, and SubagentStop
 skills/
   codebase-analyzer/     # Initial CLAUDE.md generation
   memory-processor/      # Ongoing CLAUDE.md updates
   shared/                # Shared references
 tests/
-  test_hooks.py          # Hook behavior tests
+  test_hooks.py          # PostToolUse hook behavior tests
+  test_trigger.py        # trigger.py unit tests
   test_integration.py    # Plugin structure tests
   test_skills.py         # Skill validation tests
 ```
@@ -71,9 +72,10 @@ tests/
 Data flow:
 1. User edits files via Edit/Write tools or git operations (rm, mv)
 2. PostToolUse hook appends paths to `.claude/auto-memory/dirty-files`
-3. Stop hook detects dirty files, blocks Claude, requests agent spawn
-4. memory-updater agent processes files and updates CLAUDE.md
-5. Dirty files cleared after processing
+3. PreToolUse hook (gitmode only) denies git commit until dirty files processed
+4. Stop hook detects dirty files, blocks Claude, requests agent spawn
+5. memory-updater agent processes files and updates CLAUDE.md
+6. SubagentStop hook clears dirty-files after agent completes
 
 Configuration:
 - Trigger modes: `default` (after every turn) or `gitmode` (only after git commits)
@@ -87,7 +89,8 @@ Configuration:
 - **Python**: 3.9+ with type hints, snake_case naming
 - **Imports**: Group stdlib, then third-party, then local
 - **Docstrings**: Module-level docstrings explain purpose
-- **Hooks**: Zero output for PostToolUse (token cost), JSON output for Stop
+- **Hooks**: Zero output for PostToolUse/SubagentStop (token cost), JSON output for Stop/PreToolUse
+- **Hook routing**: Use hook_event_name from stdin JSON to differentiate behavior
 - **Skills/Commands**: YAML frontmatter with name/description
 - **Line length**: 100 characters (ruff config)
 - **Testing**: pytest with descriptive test names (test_verb_condition)
@@ -97,7 +100,9 @@ Configuration:
 <!-- AUTO-MANAGED: patterns -->
 ## Detected Patterns
 
-- **Hook Pattern**: Silent tracking (PostToolUse) + blocking decision (Stop)
+- **Hook Consolidation Pattern**: Single trigger.py handles PreToolUse, Stop, and SubagentStop hooks, routing based on hook_event_name
+- **Hook Lifecycle Pattern**: PostToolUse tracks → Stop/PreToolUse blocks → Agent spawns → SubagentStop cleans up
+- **Separation of Concerns**: PostToolUse (silent tracking) vs Stop/PreToolUse (blocking with output) vs SubagentStop (cleanup)
 - **Dirty File Pattern**: Append-only tracking, batch processing at turn end
 - **Skill Pattern**: YAML frontmatter + markdown body with algorithm sections
 - **Template Pattern**: AUTO-MANAGED markers for updatable sections
@@ -110,6 +115,10 @@ Configuration:
 ## Git Insights
 
 Recent design decisions from commit history:
+- Hook consolidation: stop.py removed, functionality merged into trigger.py for simpler maintenance
+- SubagentStop hook added to automate dirty-files cleanup after agent completion
+- Agent simplification: memory-updater.md no longer handles cleanup (delegated to SubagentStop)
+- PreToolUse hook added for gitmode to intercept commits before they happen
 - Template enforcement added to ensure consistent CLAUDE.md structure
 - Git commit context enrichment for better change tracking
 - Configurable trigger modes (default vs gitmode)

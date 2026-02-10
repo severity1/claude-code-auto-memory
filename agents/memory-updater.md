@@ -51,19 +51,17 @@ For each changed file (max 7 files total):
    - Detected dependencies
    - Git context (commits, diffs)
    - CLAUDE.md files to update
-
-### Phase 6: Cleanup (MANDATORY)
-**ALWAYS execute this phase**, even if no CLAUDE.md updates were needed.
-1. Clear `.claude/auto-memory/dirty-files` using Write tool (write empty string)
-2. Return summary:
+3. Return summary:
    - "Updated [sections] in [CLAUDE.md files]"
    - "Based on changes to [file list]"
    - If commit context was present: "From commit [hash]: [message]"
    - Note any errors or skipped items
 
+Note: Dirty-files cleanup is handled automatically by the SubagentStop hook
+after this agent completes. No manual cleanup is needed.
+
 ## Tool Usage
 - **Read**: File contents, dirty-files (respect line limits)
-- **Write**: Clear dirty-files (write empty string)
 - **Edit**: Update CLAUDE.md sections
 - **Bash**: Git commands only (read-only)
 - **Glob**: Find CLAUDE.md files
