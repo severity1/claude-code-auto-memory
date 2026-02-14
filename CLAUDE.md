@@ -91,6 +91,7 @@ Configuration:
 - **Docstrings**: Module-level docstrings explain purpose
 - **Hooks**: Zero output for PostToolUse/SubagentStop (token cost), JSON output for Stop/PreToolUse
 - **Hook routing**: Use hook_event_name from stdin JSON to differentiate behavior
+- **Hook commands**: Use python3 with fallback (`python3 script.py || python script.py`) for cross-platform compatibility
 - **Skills/Commands**: YAML frontmatter with name/description
 - **Line length**: 100 characters (ruff config)
 - **Testing**: pytest with descriptive test names (test_verb_condition)
