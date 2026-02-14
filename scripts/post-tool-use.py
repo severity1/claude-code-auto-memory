@@ -9,8 +9,8 @@ Supports configurable trigger modes:
 - default: Track Edit/Write/Bash operations (current behavior)
 - gitmode: Only track git commits
 
-When a git commit is detected, enriches each file path with inline commit
-context: /path/to/file [hash: commit message]
+In gitmode, when a git commit is detected, enriches each file path with
+inline commit context: /path/to/file [hash: commit message]
 """
 
 from __future__ import annotations
@@ -260,6 +260,10 @@ def main():
 
     # In gitmode, only process git commits
     if trigger_mode == "gitmode" and not is_git_commit:
+        return
+
+    # In default mode, skip git commits (files already tracked via Edit/Write hooks)
+    if trigger_mode == "default" and is_git_commit:
         return
 
     files_to_track = []

@@ -122,6 +122,8 @@ Recent design decisions from commit history:
 - Template enforcement added to ensure consistent CLAUDE.md structure
 - Git commit context enrichment for better change tracking
 - Configurable trigger modes (default vs gitmode)
+- Windows compatibility: python3/python fallback pattern in hook commands
+- Default mode optimization: Skip git commit tracking (files already tracked via Edit/Write)
 
 <!-- END AUTO-MANAGED -->
 

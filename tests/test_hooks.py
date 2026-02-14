@@ -336,6 +336,19 @@ class TestPostToolUseHook:
         assert "deleted.py" in content
         assert "/dev/null" not in content
 
+    def test_skip_git_commit_in_default_mode(self, tmp_path):
+        """Hook skips git commit commands in default mode (files tracked via Edit/Write)."""
+        env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
+        subprocess.run(
+            [sys.executable, SCRIPTS_DIR / "post-tool-use.py"],
+            env={**os.environ, **env},
+            input=self._make_bash_input("git commit -m 'Add feature'"),
+            capture_output=True,
+            text=True,
+        )
+        dirty_file = tmp_path / ".claude" / "auto-memory" / "dirty-files"
+        assert not dirty_file.exists()
+
 
 class TestStopHook:
     """Tests for trigger.py Stop hook behavior."""
@@ -753,9 +766,14 @@ class TestGitCommitContext:
         sys.modules.pop("post-tool-use", None)
 
     def test_commit_enriches_dirty_files_with_context(self, tmp_path):
-        """Git commit command enriches dirty files with inline context."""
+        """Git commit command enriches dirty files with inline context in gitmode."""
         # Initialize git repo
         self._init_git_repo(tmp_path)
+
+        # Set up gitmode config (commit enrichment only applies in gitmode)
+        config_dir = tmp_path / ".claude" / "auto-memory"
+        config_dir.mkdir(parents=True, exist_ok=True)
+        (config_dir / "config.json").write_text(json.dumps({"triggerMode": "gitmode"}))
 
         # Create and commit a file
         test_file = tmp_path / "module.py"
@@ -778,7 +796,7 @@ class TestGitCommitContext:
         )
 
         # Check dirty files contain commit context
-        dirty_file = tmp_path / ".claude" / "auto-memory" / "dirty-files"
+        dirty_file = config_dir / "dirty-files"
         assert dirty_file.exists()
         content = dirty_file.read_text()
 
