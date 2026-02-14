@@ -1,6 +1,6 @@
 [project]
 name = "claude-code-auto-memory"
-version = "0.8.1"
+version = "0.8.2"
 description = "Automatically maintains CLAUDE.md files as codebases evolve"
 readme = "README.md"
 license = "MIT"
