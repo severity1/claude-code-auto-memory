@@ -10,10 +10,9 @@ import sys
 from pathlib import Path
 from unittest.mock import patch
 
-# Import trigger.py module
+# Make scripts/ importable so we can load trigger.py as a module.
 SCRIPTS_DIR = Path(__file__).parent.parent / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
-
 trigger = importlib.import_module("trigger")
 sys.path.pop(0)
 

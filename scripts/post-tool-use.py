@@ -21,6 +21,7 @@ import shlex
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 
 def plugin_initialized(project_dir: str) -> bool:
@@ -36,19 +37,20 @@ def plugin_initialized(project_dir: str) -> bool:
     return (Path(project_dir) / ".claude" / "auto-memory" / "config.json").exists()
 
 
-def load_config(project_dir: str) -> dict:
+def load_config(project_dir: str) -> dict[str, Any]:
     """Load plugin configuration from .claude/auto-memory/config.json."""
     config_file = Path(project_dir) / ".claude" / "auto-memory" / "config.json"
     if config_file.exists():
         try:
             with open(config_file) as f:
-                return json.load(f)
+                data: dict[str, Any] = json.load(f)
+                return data
         except (json.JSONDecodeError, OSError):
             pass
     return {"triggerMode": "default"}
 
 
-def handle_git_commit(project_dir: str) -> tuple[list[str], dict | None]:
+def handle_git_commit(project_dir: str) -> tuple[list[str], dict[str, str] | None]:
     """Extract context from a git commit.
 
     Returns: (files, commit_context) where commit_context is {"hash": ..., "message": ...}
@@ -242,7 +244,7 @@ def extract_files_from_bash(command: str, project_dir: str) -> list[str]:
     return resolved
 
 
-def main():
+def main() -> None:
     project_dir = os.environ.get("CLAUDE_PROJECT_DIR", "")
 
     # CLAUDE_PROJECT_DIR is required - don't use cwd fallback as it may be wrong
@@ -255,6 +257,7 @@ def main():
         return
 
     # Read tool input from stdin (JSON format)
+    tool_input: dict[str, Any]
     try:
         stdin_data = sys.stdin.read()
         tool_input = json.loads(stdin_data) if stdin_data else {}

@@ -17,6 +17,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import Any
 
 
 def plugin_initialized(project_dir: str) -> bool:
@@ -32,13 +33,14 @@ def plugin_initialized(project_dir: str) -> bool:
     return (Path(project_dir) / ".claude" / "auto-memory" / "config.json").exists()
 
 
-def load_config(project_dir: str) -> dict:
+def load_config(project_dir: str) -> dict[str, Any]:
     """Load plugin configuration from .claude/auto-memory/config.json."""
     config_file = Path(project_dir) / ".claude" / "auto-memory" / "config.json"
     if config_file.exists():
         try:
             with open(config_file) as f:
-                return json.load(f)
+                data: dict[str, Any] = json.load(f)
+                return data
         except (json.JSONDecodeError, OSError):
             pass
     return {"triggerMode": "default"}
@@ -80,7 +82,7 @@ def build_spawn_reason(files: list[str]) -> str:
     )
 
 
-def handle_stop(input_data: dict, project_dir: str) -> None:
+def handle_stop(input_data: dict[str, Any], project_dir: str) -> None:
     """Handle Stop hook event."""
     # Prevent infinite loop when stop_hook_active is set
     if input_data.get("stop_hook_active", False):
@@ -135,7 +137,7 @@ def handle_subagent_stop(project_dir: str) -> None:
     clear_dirty_files(project_dir)
 
 
-def handle_pre_tool_use(input_data: dict, project_dir: str) -> None:
+def handle_pre_tool_use(input_data: dict[str, Any], project_dir: str) -> None:
     """Handle PreToolUse hook event.
 
     Only active in gitmode. Denies git commit commands when dirty files
@@ -179,12 +181,13 @@ def handle_pre_tool_use(input_data: dict, project_dir: str) -> None:
     print(json.dumps(output))
 
 
-def main():
+def main() -> None:
     project_dir = os.environ.get("CLAUDE_PROJECT_DIR", "")
     if not project_dir:
         return
 
     # Read stdin JSON to determine which hook event fired
+    input_data: dict[str, Any]
     try:
         input_data = json.loads(sys.stdin.read())
     except json.JSONDecodeError:
