@@ -76,6 +76,7 @@ class TestPostToolUseHook:
 
     def test_no_output(self, tmp_path):
         """Hook produces no output (zero token cost)."""
+        self._init_config(tmp_path)
         file_path = str(tmp_path / "file.py")
         env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
         result = subprocess.run(
@@ -101,6 +102,7 @@ class TestPostToolUseHook:
 
     def test_excludes_claude_directory(self, tmp_path):
         """Hook excludes files in .claude/ directory."""
+        self._init_config(tmp_path)
         file_path = str(tmp_path / ".claude" / "state.json")
         env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
         subprocess.run(
@@ -115,6 +117,7 @@ class TestPostToolUseHook:
 
     def test_excludes_claude_md(self, tmp_path):
         """Hook excludes CLAUDE.md files."""
+        self._init_config(tmp_path)
         file_path = str(tmp_path / "CLAUDE.md")
         env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
         subprocess.run(
