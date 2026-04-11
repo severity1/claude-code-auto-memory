@@ -4,6 +4,7 @@ Tests internal functions directly (no subprocess), complementing the
 subprocess-based integration tests in test_hooks.py.
 """
 
+import importlib
 import json
 import sys
 from pathlib import Path
@@ -12,7 +13,6 @@ from unittest.mock import patch
 # Import trigger.py module
 SCRIPTS_DIR = Path(__file__).parent.parent / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
-import importlib
 
 trigger = importlib.import_module("trigger")
 sys.path.pop(0)
@@ -54,6 +54,30 @@ class TestLoadConfig:
 
         config = trigger.load_config(str(tmp_path))
         assert config["customField"] == "value"
+
+
+class TestPluginInitialized:
+    """Tests for plugin_initialized - opt-in guard for uninitialized projects (#17)."""
+
+    def test_returns_false_when_config_absent(self, tmp_path):
+        """Returns False when config.json does not exist."""
+        assert trigger.plugin_initialized(str(tmp_path)) is False
+
+    def test_returns_true_when_config_present(self, tmp_path):
+        """Returns True when config.json exists."""
+        config_dir = tmp_path / ".claude" / "auto-memory"
+        config_dir.mkdir(parents=True)
+        (config_dir / "config.json").write_text(json.dumps({"triggerMode": "default"}))
+
+        assert trigger.plugin_initialized(str(tmp_path)) is True
+
+    def test_returns_false_when_only_dirty_files_present(self, tmp_path):
+        """Returns False when dirty-files exists but config.json does not."""
+        dirty_dir = tmp_path / ".claude" / "auto-memory"
+        dirty_dir.mkdir(parents=True)
+        (dirty_dir / "dirty-files").write_text("/file.py\n")
+
+        assert trigger.plugin_initialized(str(tmp_path)) is False
 
 
 class TestReadDirtyFiles:
@@ -171,8 +195,10 @@ class TestHandleStop:
 
     def test_blocks_with_dirty_files(self, tmp_path, capsys):
         """Outputs block decision when dirty files exist."""
-        dirty = tmp_path / ".claude" / "auto-memory" / "dirty-files"
-        dirty.parent.mkdir(parents=True)
+        config_dir = tmp_path / ".claude" / "auto-memory"
+        config_dir.mkdir(parents=True)
+        (config_dir / "config.json").write_text(json.dumps({"triggerMode": "default"}))
+        dirty = config_dir / "dirty-files"
         dirty.write_text("/src/main.py\n")
 
         trigger.handle_stop({}, str(tmp_path))
@@ -190,6 +216,15 @@ class TestHandleStop:
         trigger.handle_stop({}, str(tmp_path))
         output = json.loads(capsys.readouterr().out)
         assert output["decision"] == "block"
+
+    def test_no_output_when_not_initialized(self, tmp_path, capsys):
+        """No output when config.json is absent, even with dirty files (#17)."""
+        dirty = tmp_path / ".claude" / "auto-memory" / "dirty-files"
+        dirty.parent.mkdir(parents=True)
+        dirty.write_text("/src/main.py\n")
+
+        trigger.handle_stop({}, str(tmp_path))
+        assert capsys.readouterr().out == ""
 
 
 class TestHandlePreToolUse:
@@ -255,6 +290,19 @@ class TestHandlePreToolUse:
         assert hook_output["permissionDecision"] == "deny"
         assert "/src/feature.py" in hook_output["permissionDecisionReason"]
 
+    def test_no_output_when_not_initialized(self, tmp_path, capsys):
+        """No output when config.json is absent, even for git commit (#17)."""
+        dirty = tmp_path / ".claude" / "auto-memory" / "dirty-files"
+        dirty.parent.mkdir(parents=True)
+        dirty.write_text("/src/feature.py\n")
+
+        input_data = {
+            "hook_event_name": "PreToolUse",
+            "tool_input": {"command": "git commit -m 'test'"},
+        }
+        trigger.handle_pre_tool_use(input_data, str(tmp_path))
+        assert capsys.readouterr().out == ""
+
 
 class TestEventRouting:
     """Tests for main() event routing - the core consolidation logic.
@@ -265,8 +313,10 @@ class TestEventRouting:
 
     def test_routes_stop_event(self, tmp_path):
         """Routes to handle_stop when hook_event_name is Stop."""
-        dirty = tmp_path / ".claude" / "auto-memory" / "dirty-files"
-        dirty.parent.mkdir(parents=True)
+        config_dir = tmp_path / ".claude" / "auto-memory"
+        config_dir.mkdir(parents=True)
+        (config_dir / "config.json").write_text(json.dumps({"triggerMode": "default"}))
+        dirty = config_dir / "dirty-files"
         dirty.write_text("/file.py\n")
 
         stdin_data = json.dumps({"hook_event_name": "Stop"})
@@ -310,8 +360,10 @@ class TestEventRouting:
 
     def test_defaults_to_stop_when_no_event_name(self, tmp_path):
         """Defaults to Stop handler when hook_event_name is missing."""
-        dirty = tmp_path / ".claude" / "auto-memory" / "dirty-files"
-        dirty.parent.mkdir(parents=True)
+        config_dir = tmp_path / ".claude" / "auto-memory"
+        config_dir.mkdir(parents=True)
+        (config_dir / "config.json").write_text(json.dumps({"triggerMode": "default"}))
+        dirty = config_dir / "dirty-files"
         dirty.write_text("/file.py\n")
 
         with (

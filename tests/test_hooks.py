@@ -13,6 +13,12 @@ SCRIPTS_DIR = Path(__file__).parent.parent / "scripts"
 class TestPostToolUseHook:
     """Tests for post-tool-use.py hook."""
 
+    def _init_config(self, tmp_path):
+        """Create config.json so plugin_initialized() returns True."""
+        config_dir = tmp_path / ".claude" / "auto-memory"
+        config_dir.mkdir(parents=True, exist_ok=True)
+        (config_dir / "config.json").write_text(json.dumps({"triggerMode": "default"}))
+
     def _make_tool_input(self, file_path: str, tool_name: str = "Edit") -> str:
         """Create JSON input for post-tool-use hook (Edit/Write tools)."""
         return json.dumps(
@@ -33,6 +39,7 @@ class TestPostToolUseHook:
 
     def test_creates_dirty_file(self, tmp_path):
         """Hook creates .claude/auto-memory/dirty-files if it doesn't exist."""
+        self._init_config(tmp_path)
         file_path = str(tmp_path / "file.py")
         env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
         result = subprocess.run(
@@ -48,8 +55,9 @@ class TestPostToolUseHook:
 
     def test_appends_paths(self, tmp_path):
         """Hook appends file paths to dirty file."""
+        self._init_config(tmp_path)
         dirty_file = tmp_path / ".claude" / "auto-memory" / "dirty-files"
-        dirty_file.parent.mkdir(parents=True)
+        dirty_file.parent.mkdir(parents=True, exist_ok=True)
         existing_file = str(tmp_path / "existing" / "file.py")
         dirty_file.write_text(existing_file + "\n")
 
@@ -137,6 +145,7 @@ class TestPostToolUseHook:
 
     def test_tracks_rm_command(self, tmp_path):
         """Hook tracks files from rm command."""
+        self._init_config(tmp_path)
         env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
         subprocess.run(
             [sys.executable, SCRIPTS_DIR / "post-tool-use.py"],
@@ -152,6 +161,7 @@ class TestPostToolUseHook:
 
     def test_tracks_rm_with_flags(self, tmp_path):
         """Hook tracks files from rm -rf command."""
+        self._init_config(tmp_path)
         env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
         subprocess.run(
             [sys.executable, SCRIPTS_DIR / "post-tool-use.py"],
@@ -167,6 +177,7 @@ class TestPostToolUseHook:
 
     def test_tracks_rm_multiple_files(self, tmp_path):
         """Hook tracks multiple files from rm command."""
+        self._init_config(tmp_path)
         env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
         subprocess.run(
             [sys.executable, SCRIPTS_DIR / "post-tool-use.py"],
@@ -184,6 +195,7 @@ class TestPostToolUseHook:
 
     def test_tracks_git_rm_command(self, tmp_path):
         """Hook tracks files from git rm command."""
+        self._init_config(tmp_path)
         env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
         subprocess.run(
             [sys.executable, SCRIPTS_DIR / "post-tool-use.py"],
@@ -199,6 +211,7 @@ class TestPostToolUseHook:
 
     def test_tracks_mv_source(self, tmp_path):
         """Hook tracks source file from mv command."""
+        self._init_config(tmp_path)
         env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
         subprocess.run(
             [sys.executable, SCRIPTS_DIR / "post-tool-use.py"],
@@ -216,6 +229,7 @@ class TestPostToolUseHook:
 
     def test_tracks_unlink_command(self, tmp_path):
         """Hook tracks files from unlink command."""
+        self._init_config(tmp_path)
         env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
         subprocess.run(
             [sys.executable, SCRIPTS_DIR / "post-tool-use.py"],
@@ -271,6 +285,7 @@ class TestPostToolUseHook:
 
     def test_stops_at_shell_operators(self, tmp_path):
         """Hook stops parsing at shell operators like && || ; |."""
+        self._init_config(tmp_path)
         env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
 
         # Test && operator - should only track file.py, not 'echo' or 'done'
@@ -291,6 +306,7 @@ class TestPostToolUseHook:
 
     def test_stops_at_semicolon(self, tmp_path):
         """Hook stops parsing at semicolon operator."""
+        self._init_config(tmp_path)
         env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
         subprocess.run(
             [sys.executable, SCRIPTS_DIR / "post-tool-use.py"],
@@ -307,6 +323,7 @@ class TestPostToolUseHook:
 
     def test_stops_at_pipe(self, tmp_path):
         """Hook stops parsing at pipe operator."""
+        self._init_config(tmp_path)
         env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
         subprocess.run(
             [sys.executable, SCRIPTS_DIR / "post-tool-use.py"],
@@ -323,6 +340,7 @@ class TestPostToolUseHook:
 
     def test_stops_at_redirect(self, tmp_path):
         """Hook stops parsing at redirect operators."""
+        self._init_config(tmp_path)
         env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
         subprocess.run(
             [sys.executable, SCRIPTS_DIR / "post-tool-use.py"],
@@ -349,9 +367,35 @@ class TestPostToolUseHook:
         dirty_file = tmp_path / ".claude" / "auto-memory" / "dirty-files"
         assert not dirty_file.exists()
 
+    def test_no_dirty_files_when_config_absent(self, tmp_path):
+        """Hook does not write dirty-files when config.json is absent (#17).
+
+        Projects without config.json have not run /auto-memory:init.
+        The plugin must stay entirely inert on those projects.
+        """
+        file_path = str(tmp_path / "src" / "main.py")
+        env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
+        result = subprocess.run(
+            [sys.executable, SCRIPTS_DIR / "post-tool-use.py"],
+            env={**os.environ, **env},
+            input=self._make_tool_input(file_path),
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0
+        assert result.stdout == ""
+        dirty_file = tmp_path / ".claude" / "auto-memory" / "dirty-files"
+        assert not dirty_file.exists()
+
 
 class TestStopHook:
     """Tests for trigger.py Stop hook behavior."""
+
+    def _init_config(self, tmp_path):
+        """Create config.json so plugin_initialized() returns True."""
+        config_dir = tmp_path / ".claude" / "auto-memory"
+        config_dir.mkdir(parents=True, exist_ok=True)
+        (config_dir / "config.json").write_text(json.dumps({"triggerMode": "default"}))
 
     def test_passes_when_empty(self, tmp_path):
         """Hook passes through when no dirty files exist."""
@@ -385,8 +429,9 @@ class TestStopHook:
 
     def test_blocks_with_files(self, tmp_path):
         """Hook blocks and outputs JSON when dirty files exist."""
+        self._init_config(tmp_path)
         dirty_file = tmp_path / ".claude" / "auto-memory" / "dirty-files"
-        dirty_file.parent.mkdir(parents=True)
+        dirty_file.parent.mkdir(parents=True, exist_ok=True)
         dirty_file.write_text("/path/to/file.py\n")
 
         env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
@@ -404,8 +449,9 @@ class TestStopHook:
 
     def test_json_format(self, tmp_path):
         """Hook output is valid JSON with required fields."""
+        self._init_config(tmp_path)
         dirty_file = tmp_path / ".claude" / "auto-memory" / "dirty-files"
-        dirty_file.parent.mkdir(parents=True)
+        dirty_file.parent.mkdir(parents=True, exist_ok=True)
         dirty_file.write_text("/path/to/file.py\n")
 
         env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
@@ -422,8 +468,9 @@ class TestStopHook:
 
     def test_deduplicates_files(self, tmp_path):
         """Hook deduplicates file paths in output."""
+        self._init_config(tmp_path)
         dirty_file = tmp_path / ".claude" / "auto-memory" / "dirty-files"
-        dirty_file.parent.mkdir(parents=True)
+        dirty_file.parent.mkdir(parents=True, exist_ok=True)
         dirty_file.write_text("/file.py\n/file.py\n/file.py\n")
 
         env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
@@ -440,8 +487,9 @@ class TestStopHook:
 
     def test_limits_file_count(self, tmp_path):
         """Hook limits file list to 20 files max."""
+        self._init_config(tmp_path)
         dirty_file = tmp_path / ".claude" / "auto-memory" / "dirty-files"
-        dirty_file.parent.mkdir(parents=True)
+        dirty_file.parent.mkdir(parents=True, exist_ok=True)
         files = [f"/file{i}.py" for i in range(30)]
         dirty_file.write_text("\n".join(files) + "\n")
 
@@ -463,8 +511,9 @@ class TestStopHook:
 
     def test_handles_invalid_json_input(self, tmp_path):
         """Hook handles invalid JSON input gracefully."""
+        self._init_config(tmp_path)
         dirty_file = tmp_path / ".claude" / "auto-memory" / "dirty-files"
-        dirty_file.parent.mkdir(parents=True)
+        dirty_file.parent.mkdir(parents=True, exist_ok=True)
         dirty_file.write_text("/path/to/file.py\n")
 
         env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
@@ -482,8 +531,9 @@ class TestStopHook:
 
     def test_output_includes_task_params(self, tmp_path):
         """Stop output includes run_in_background and bypassPermissions instructions."""
+        self._init_config(tmp_path)
         dirty_file = tmp_path / ".claude" / "auto-memory" / "dirty-files"
-        dirty_file.parent.mkdir(parents=True)
+        dirty_file.parent.mkdir(parents=True, exist_ok=True)
         dirty_file.write_text("/path/to/file.py\n")
 
         env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
@@ -497,6 +547,27 @@ class TestStopHook:
         output = json.loads(result.stdout)
         assert "run_in_background" in output["reason"]
         assert "bypassPermissions" in output["reason"]
+
+    def test_no_output_when_config_absent(self, tmp_path):
+        """Stop hook produces no output when config.json is absent (#17).
+
+        Even if dirty-files somehow exists, an uninitialized project
+        (no config.json) must not trigger the memory-updater agent.
+        """
+        dirty_file = tmp_path / ".claude" / "auto-memory" / "dirty-files"
+        dirty_file.parent.mkdir(parents=True)
+        dirty_file.write_text("/path/to/file.py\n")
+
+        env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
+        result = subprocess.run(
+            [sys.executable, SCRIPTS_DIR / "trigger.py"],
+            env={**os.environ, **env},
+            input="{}",
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0
+        assert result.stdout == ""
 
 
 class TestPreToolUseHook:
@@ -606,6 +677,26 @@ class TestPreToolUseHook:
         reason = output["hookSpecificOutput"]["permissionDecisionReason"]
         assert "run_in_background" in reason
         assert "bypassPermissions" in reason
+
+    def test_no_output_when_config_absent(self, tmp_path):
+        """PreToolUse produces no output when config.json is absent (#17).
+
+        An uninitialized project must not have git commits intercepted.
+        """
+        dirty_file = tmp_path / ".claude" / "auto-memory" / "dirty-files"
+        dirty_file.parent.mkdir(parents=True)
+        dirty_file.write_text("/path/to/file.py\n")
+
+        env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
+        result = subprocess.run(
+            [sys.executable, SCRIPTS_DIR / "trigger.py"],
+            env={**os.environ, **env},
+            input=self._make_pre_tool_input("git commit -m 'test'"),
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0
+        assert result.stdout == ""
 
 
 class TestSubagentStopHook:

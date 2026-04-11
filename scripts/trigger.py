@@ -19,6 +19,19 @@ import sys
 from pathlib import Path
 
 
+def plugin_initialized(project_dir: str) -> bool:
+    """Return True if the plugin has been initialized for this project.
+
+    The presence of .claude/auto-memory/config.json is the explicit
+    opt-in marker - users create it by running /auto-memory:init. On
+    projects without config.json we keep the plugin entirely inert:
+    no Stop-hook blocking, no PreToolUse interception, no memory-updater
+    agent spawn. This prevents auto-memory from intruding on projects
+    where the user never opted in (#17).
+    """
+    return (Path(project_dir) / ".claude" / "auto-memory" / "config.json").exists()
+
+
 def load_config(project_dir: str) -> dict:
     """Load plugin configuration from .claude/auto-memory/config.json."""
     config_file = Path(project_dir) / ".claude" / "auto-memory" / "config.json"
@@ -73,6 +86,10 @@ def handle_stop(input_data: dict, project_dir: str) -> None:
     if input_data.get("stop_hook_active", False):
         return
 
+    # Skip entirely on projects where the user hasn't run /auto-memory:init
+    if not plugin_initialized(project_dir):
+        return
+
     config = load_config(project_dir)
     trigger_mode = config.get("triggerMode", "default")
 
@@ -124,6 +141,10 @@ def handle_pre_tool_use(input_data: dict, project_dir: str) -> None:
     Only active in gitmode. Denies git commit commands when dirty files
     exist, forcing the memory-updater to run first.
     """
+    # Skip entirely on projects where the user hasn't run /auto-memory:init
+    if not plugin_initialized(project_dir):
+        return
+
     config = load_config(project_dir)
     trigger_mode = config.get("triggerMode", "default")
 

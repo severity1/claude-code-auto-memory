@@ -23,6 +23,19 @@ import sys
 from pathlib import Path
 
 
+def plugin_initialized(project_dir: str) -> bool:
+    """Return True if the plugin has been initialized for this project.
+
+    The presence of .claude/auto-memory/config.json is the explicit
+    opt-in marker - users create it by running /auto-memory:init. On
+    projects without config.json we keep the plugin entirely inert:
+    PostToolUse does not track any file edits, so dirty-files never
+    gets created and the downstream Stop hook never spawns memory-updater
+    (#17).
+    """
+    return (Path(project_dir) / ".claude" / "auto-memory" / "config.json").exists()
+
+
 def load_config(project_dir: str) -> dict:
     """Load plugin configuration from .claude/auto-memory/config.json."""
     config_file = Path(project_dir) / ".claude" / "auto-memory" / "config.json"
@@ -235,6 +248,10 @@ def main():
     # CLAUDE_PROJECT_DIR is required - don't use cwd fallback as it may be wrong
     # (e.g., plugin cache directory instead of user's project)
     if not project_dir:
+        return
+
+    # Skip entirely on projects where the user hasn't run /auto-memory:init
+    if not plugin_initialized(project_dir):
         return
 
     # Read tool input from stdin (JSON format)
