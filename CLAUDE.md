@@ -102,7 +102,8 @@ Configuration:
 ## Detected Patterns
 
 - **Hook Consolidation Pattern**: Single trigger.py handles PreToolUse, Stop, and SubagentStop hooks, routing based on hook_event_name
-- **Hook Lifecycle Pattern**: PostToolUse tracks → Stop/PreToolUse blocks → Agent spawns → SubagentStop cleans up
+- **Initialization Guard Pattern**: `plugin_initialized()` in post-tool-use.py, handle_stop(), and handle_pre_tool_use() gates all activity on config.json existence — projects that never ran /auto-memory:init are fully inert
+- **Hook Lifecycle Pattern**: PostToolUse tracks → Stop/PreToolUse blocks → Agent spawns → SubagentStop cleans up (cleanup gated on dirty-files only, not config.json, to prevent infinite loops)
 - **Separation of Concerns**: PostToolUse (silent tracking) vs Stop/PreToolUse (blocking with output) vs SubagentStop (cleanup)
 - **Dirty File Pattern**: Append-only tracking, batch processing at turn end
 - **Skill Pattern**: YAML frontmatter + markdown body with algorithm sections
@@ -125,6 +126,9 @@ Recent design decisions from commit history:
 - Configurable trigger modes (default vs gitmode)
 - Windows compatibility: python3/python fallback pattern in hook commands
 - Default mode optimization: Skip git commit tracking (files already tracked via Edit/Write)
+- SubagentStop cleanup gated on dirty-files only (not config.json): requiring config.json caused infinite Stop-hook loops on uninitialized projects where dirty-files never got cleared
+- Initialization guard added (#17): plugin_initialized() check in PostToolUse, Stop, and PreToolUse keeps the plugin fully inert on projects that never ran /auto-memory:init
+- Type annotations tightened: dict[str, Any] generics, typed main() -> None, narrowed handle_git_commit return type
 
 <!-- END AUTO-MANAGED -->
 
