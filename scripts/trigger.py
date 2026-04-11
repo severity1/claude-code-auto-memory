@@ -76,7 +76,8 @@ def build_spawn_reason(files: list[str]) -> str:
     return (
         f"Files were modified this turn. Use the Task tool with "
         f"run_in_background set to false and mode set to bypassPermissions "
-        f"to spawn 'memory-updater' agent with prompt: 'Update CLAUDE.md for "
+        f"to spawn 'memory-updater' agent with subagent_type set to "
+        f"'auto-memory:memory-updater' and prompt: 'Update CLAUDE.md for "
         f"changed files: {files_str}'. After the agent completes, use the "
         f"Read tool to read the root CLAUDE.md file to refresh your memory."
     )
@@ -172,9 +173,10 @@ def handle_pre_tool_use(input_data: dict[str, Any], project_dir: str) -> None:
             "permissionDecisionReason": (
                 f"Files were modified since last memory update. Use the Task tool "
                 f"with run_in_background set to false and mode set to "
-                f"bypassPermissions to spawn 'memory-updater' agent with prompt: "
-                f"'Update CLAUDE.md for changed files: {files_str}'. After the "
-                f"agent completes, retry the git commit."
+                f"bypassPermissions to spawn 'memory-updater' agent with subagent_type "
+                f"set to 'auto-memory:memory-updater' and prompt: 'Update CLAUDE.md "
+                f"for changed files: {files_str}'. After the agent completes, retry "
+                f"the git commit."
             ),
         }
     }

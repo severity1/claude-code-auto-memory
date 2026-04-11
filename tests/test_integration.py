@@ -102,7 +102,7 @@ class TestHooksConfiguration:
         Claude Code resolves plugin-scoped subagent names at runtime (#25).
         """
         subagent_stop = hooks_json["hooks"]["SubagentStop"][0]
-        assert subagent_stop["matcher"] == "(auto-memory:)?memory-updater$"
+        assert subagent_stop["matcher"] == "^(auto-memory:)?memory-updater$"
 
     def test_hook_commands_quote_plugin_root(self, hooks_json):
         """All hook commands quote ${CLAUDE_PLUGIN_ROOT} for Windows paths with spaces (#26).

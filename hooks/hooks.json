@@ -36,7 +36,7 @@
     ],
     "SubagentStop": [
       {
-        "matcher": "(auto-memory:)?memory-updater$",
+        "matcher": "^(auto-memory:)?memory-updater$",
         "hooks": [
           {
             "type": "command",
