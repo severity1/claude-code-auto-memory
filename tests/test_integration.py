@@ -95,9 +95,31 @@ class TestHooksConfiguration:
         assert "SubagentStop" in hooks_json["hooks"]
 
     def test_subagent_stop_matcher(self, hooks_json):
-        """SubagentStop hook has memory-updater matcher."""
+        """SubagentStop matcher catches both bare and plugin-qualified agent names.
+
+        The regex matches both `memory-updater` and
+        `auto-memory:memory-updater` so we're resilient to however
+        Claude Code resolves plugin-scoped subagent names at runtime (#25).
+        """
         subagent_stop = hooks_json["hooks"]["SubagentStop"][0]
-        assert subagent_stop["matcher"] == "memory-updater"
+        assert subagent_stop["matcher"] == "(auto-memory:)?memory-updater$"
+
+    def test_hook_commands_quote_plugin_root(self, hooks_json):
+        """All hook commands quote ${CLAUDE_PLUGIN_ROOT} for Windows paths with spaces (#26).
+
+        Unquoted `${CLAUDE_PLUGIN_ROOT}` breaks when the resolved path
+        contains whitespace (e.g. `C:\\Users\\First Last\\...`) because
+        the shell splits the path across multiple arguments.
+        """
+        for event_name, hook_list in hooks_json["hooks"].items():
+            for entry in hook_list:
+                for hook in entry["hooks"]:
+                    command = hook.get("command", "")
+                    if "${CLAUDE_PLUGIN_ROOT}" not in command:
+                        continue
+                    assert '"${CLAUDE_PLUGIN_ROOT}' in command, (
+                        f"{event_name} hook command has unquoted ${{CLAUDE_PLUGIN_ROOT}}: {command}"
+                    )
 
 
 class TestAgentConfiguration:

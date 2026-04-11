@@ -105,14 +105,12 @@ def clear_dirty_files(project_dir: str) -> None:
 def handle_subagent_stop(project_dir: str) -> None:
     """Handle SubagentStop hook event.
 
-    Clears dirty-files after the memory-updater agent completes. Scoped to
-    our plugin by checking that both config.json exists (plugin active) and
-    dirty-files is non-empty (there's something to clean up).
+    Clears dirty-files after the memory-updater agent completes. Gated on
+    dirty-files presence alone - we intentionally do not require
+    config.json to exist, because doing so caused an infinite Stop-hook
+    loop on uninitialized projects (#17, #25): the Stop hook would
+    re-fire every turn on stale dirty-files that never got cleared.
     """
-    config_file = Path(project_dir) / ".claude" / "auto-memory" / "config.json"
-    if not config_file.exists():
-        return
-
     files = read_dirty_files(project_dir)
     if not files:
         return

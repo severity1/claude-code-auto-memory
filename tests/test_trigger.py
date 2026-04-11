@@ -290,10 +290,12 @@ class TestEventRouting:
         (config_dir / "config.json").write_text(json.dumps({"triggerMode": "gitmode"}))
         (config_dir / "dirty-files").write_text("/file.py\n")
 
-        stdin_data = json.dumps({
-            "hook_event_name": "PreToolUse",
-            "tool_input": {"command": "git commit -m 'test'"},
-        })
+        stdin_data = json.dumps(
+            {
+                "hook_event_name": "PreToolUse",
+                "tool_input": {"command": "git commit -m 'test'"},
+            }
+        )
         with (
             patch.dict("os.environ", {"CLAUDE_PROJECT_DIR": str(tmp_path)}),
             patch("sys.stdin") as mock_stdin,
@@ -390,16 +392,20 @@ class TestHandleSubagentStop:
         trigger.handle_subagent_stop(str(tmp_path))
         assert dirty.read_text() == ""
 
-    def test_noop_when_no_config(self, tmp_path):
-        """Does nothing when config.json is missing (plugin not active)."""
+    def test_clears_even_when_config_missing(self, tmp_path):
+        """Still clears dirty-files when config.json is missing (#17, #25).
+
+        Regression gate: the previous early-return guard caused an
+        infinite Stop-hook loop on uninitialized projects, because
+        dirty-files was never cleaned up and the Stop hook kept firing.
+        """
         dirty_dir = tmp_path / ".claude" / "auto-memory"
         dirty_dir.mkdir(parents=True)
         dirty = dirty_dir / "dirty-files"
         dirty.write_text("/file.py\n")
 
         trigger.handle_subagent_stop(str(tmp_path))
-        # dirty-files should remain unchanged
-        assert dirty.read_text() == "/file.py\n"
+        assert dirty.read_text() == ""
 
     def test_noop_when_dirty_files_empty(self, tmp_path):
         """Does nothing when dirty-files is empty (nothing to clean up)."""

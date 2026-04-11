@@ -631,8 +631,12 @@ class TestSubagentStopHook:
         assert result.stdout == ""
         assert dirty_file.read_text() == ""
 
-    def test_noop_when_no_config(self, tmp_path):
-        """Does nothing when config.json is missing (plugin not active)."""
+    def test_clears_dirty_files_even_without_config(self, tmp_path):
+        """Still clears dirty-files when config.json is missing (#17, #25).
+
+        Regression gate for the early-return guard that caused infinite
+        Stop-hook loops on uninitialized projects.
+        """
         dirty_dir = tmp_path / ".claude" / "auto-memory"
         dirty_dir.mkdir(parents=True)
         dirty_file = dirty_dir / "dirty-files"
@@ -648,8 +652,7 @@ class TestSubagentStopHook:
         )
         assert result.returncode == 0
         assert result.stdout == ""
-        # dirty-files should remain unchanged
-        assert dirty_file.read_text() == "/path/to/file.py\n"
+        assert dirty_file.read_text() == ""
 
     def test_noop_when_dirty_files_empty(self, tmp_path):
         """Does nothing when dirty-files is empty."""

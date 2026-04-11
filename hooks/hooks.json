@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/scripts/trigger.py || python ${CLAUDE_PLUGIN_ROOT}/scripts/trigger.py"
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/trigger.py\" || python \"${CLAUDE_PLUGIN_ROOT}/scripts/trigger.py\""
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/scripts/post-tool-use.py || python ${CLAUDE_PLUGIN_ROOT}/scripts/post-tool-use.py",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/post-tool-use.py\" || python \"${CLAUDE_PLUGIN_ROOT}/scripts/post-tool-use.py\"",
             "timeout": 10
           }
         ]
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/scripts/trigger.py || python ${CLAUDE_PLUGIN_ROOT}/scripts/trigger.py",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/trigger.py\" || python \"${CLAUDE_PLUGIN_ROOT}/scripts/trigger.py\"",
             "timeout": 5
           }
         ]
@@ -36,11 +36,11 @@
     ],
     "SubagentStop": [
       {
-        "matcher": "memory-updater",
+        "matcher": "(auto-memory:)?memory-updater$",
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/scripts/trigger.py || python ${CLAUDE_PLUGIN_ROOT}/scripts/trigger.py",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/trigger.py\" || python \"${CLAUDE_PLUGIN_ROOT}/scripts/trigger.py\"",
             "timeout": 5
           }
         ]
