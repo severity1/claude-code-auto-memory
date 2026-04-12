@@ -82,6 +82,7 @@ Configuration:
 - `autoCommit`: When true, auto-commits CLAUDE.md changes after memory-updater completes
 - `autoPush`: When true (requires autoCommit), pushes commits to remote
 - Config stored in `.claude/auto-memory/config.json`
+- Init wizard interactively configures triggerMode, autoCommit, and autoPush, then updates `.gitignore` to exclude `dirty-files*` tracking files
 
 <!-- END AUTO-MANAGED -->
 
@@ -114,6 +115,8 @@ Configuration:
 - **Inline Commit Context**: Commit hash and message stored inline with file paths in dirty-files (`/path/to/file [hash: message]`)
 - **Session Isolation Pattern**: `session_id` from hook stdin JSON used to scope dirty-files per session, with fallback to shared file for backwards compatibility
 - **Stale Session Cleanup Pattern**: `cleanup_stale_session_files()` removes orphaned session dirty-files older than 24h on each SubagentStop
+- **Dirty-Files Read Order**: memory-updater reads plain `dirty-files` first; checks session-specific `dirty-files-*` files only if plain file is empty or missing
+- **Gitignore Management Pattern**: `/auto-memory:init` appends `.claude/auto-memory/dirty-files*` to `.gitignore` (creates file if absent) so tracking files are never committed
 
 <!-- END AUTO-MANAGED -->
 
