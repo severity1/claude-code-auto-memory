@@ -31,3 +31,4 @@ Thumbs.db
 
 # Claude Code auto-memory
 .claude/auto-memory/dirty-files
+.claude/auto-memory/dirty-files-*
