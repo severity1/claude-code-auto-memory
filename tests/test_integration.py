@@ -215,3 +215,29 @@ class TestFileStructure:
     def test_dev_marketplace_exists(self):
         """.dev-marketplace directory exists for local development."""
         assert (PROJECT_ROOT / ".dev-marketplace" / ".claude-plugin" / "marketplace.json").exists()
+
+    def test_agents_root_template_exists(self):
+        """AGENTS.root.md.template exists for AGENTS.md support (#14)."""
+        assert (
+            PROJECT_ROOT / "skills" / "codebase-analyzer" / "templates" / "AGENTS.root.md.template"
+        ).exists()
+
+    def test_agents_subtree_template_exists(self):
+        """AGENTS.subtree.md.template exists for AGENTS.md support (#14)."""
+        assert (
+            PROJECT_ROOT
+            / "skills"
+            / "codebase-analyzer"
+            / "templates"
+            / "AGENTS.subtree.md.template"
+        ).exists()
+
+    def test_claude_redirect_template_exists(self):
+        """CLAUDE.redirect.md.template exists for redirect mode (#14)."""
+        assert (
+            PROJECT_ROOT
+            / "skills"
+            / "codebase-analyzer"
+            / "templates"
+            / "CLAUDE.redirect.md.template"
+        ).exists()

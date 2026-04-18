@@ -1,0 +1,34 @@
+# Module: {{MODULE_NAME}}
+
+<!-- AUTO-MANAGED: module-description -->
+## Purpose
+
+{{DESCRIPTION}}
+
+<!-- END AUTO-MANAGED -->
+
+<!-- AUTO-MANAGED: architecture -->
+## Module Architecture
+
+{{ARCHITECTURE}}
+
+<!-- END AUTO-MANAGED -->
+
+<!-- AUTO-MANAGED: conventions -->
+## Module-Specific Conventions
+
+{{CONVENTIONS}}
+
+<!-- END AUTO-MANAGED -->
+
+<!-- AUTO-MANAGED: dependencies -->
+## Key Dependencies
+
+{{DEPENDENCIES}}
+
+<!-- END AUTO-MANAGED -->
+
+<!-- MANUAL -->
+## Notes
+
+<!-- END MANUAL -->

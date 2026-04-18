@@ -5,7 +5,7 @@ model: sonnet
 permissionMode: bypassPermissions
 ---
 
-You are the memory-updater agent. Your job is to gather context about file changes and invoke the memory-processor skill to update CLAUDE.md.
+You are the memory-updater agent. Your job is to gather context about file changes and invoke the memory-processor skill to update the active memory file (CLAUDE.md or AGENTS.md, depending on project config).
 
 ## Workflow
 
@@ -38,10 +38,13 @@ For each changed file (max 7 files total):
    - This provides semantic context for why files changed
 4. If not git: skip this phase, note in summary
 
-### Phase 4: Discover CLAUDE.md Files
-1. Find all CLAUDE.md files: `fd -t f -g 'CLAUDE.md' .` (or `find . -name 'CLAUDE.md'`)
-2. Map each changed file to its nearest CLAUDE.md (walk up directories)
-3. Always include root CLAUDE.md
+### Phase 4: Discover Memory Files
+1. Read `.claude/auto-memory/config.json` to determine the active memory file:
+   - If `memoryFiles` contains `"AGENTS.md"` (or is `["AGENTS.md"]`): active file is `AGENTS.md`
+   - Otherwise (default): active file is `CLAUDE.md`
+2. Find all instances of the active file: `fd -t f -g '<active-file>' .` (or `find . -name '<active-file>'`)
+3. Map each changed file to its nearest instance (walk up directories)
+4. Always include the root instance of the active file
 
 ### Phase 5: Invoke Processor
 1. Invoke the `memory-processor` skill using Skill tool
@@ -52,7 +55,7 @@ For each changed file (max 7 files total):
    - Git context (commits, diffs)
    - CLAUDE.md files to update
 3. Return summary:
-   - "Updated [sections] in [CLAUDE.md files]"
+   - "Updated [sections] in [memory file paths]"
    - "Based on changes to [file list]"
    - If commit context was present: "From commit [hash]: [message]"
    - Note any errors or skipped items

@@ -11,6 +11,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 # Make scripts/ importable so we can load trigger.py as a module.
@@ -18,6 +19,47 @@ SCRIPTS_DIR = Path(__file__).parent.parent / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
 trigger = importlib.import_module("trigger")
 sys.path.pop(0)
+
+
+class TestGetMemoryFiles:
+    """Tests for get_memory_files - resolves configured memory file names."""
+
+    def test_returns_claude_md_when_key_absent(self):
+        """Defaults to ['CLAUDE.md'] when memoryFiles not in config."""
+        assert trigger.get_memory_files({}) == ["CLAUDE.md"]
+
+    def test_returns_claude_md_when_empty_list(self):
+        """Falls back to ['CLAUDE.md'] when memoryFiles is an empty list."""
+        assert trigger.get_memory_files({"memoryFiles": []}) == ["CLAUDE.md"]
+
+    def test_returns_list_as_is(self):
+        """Returns list unchanged when memoryFiles is already a list."""
+        assert trigger.get_memory_files({"memoryFiles": ["AGENTS.md"]}) == ["AGENTS.md"]
+
+    def test_returns_both_when_both(self):
+        """Returns both names when both are configured."""
+        result = trigger.get_memory_files({"memoryFiles": ["CLAUDE.md", "AGENTS.md"]})
+        assert result == ["CLAUDE.md", "AGENTS.md"]
+
+    def test_wraps_string_in_list(self):
+        """Wraps a bare string value in a list for backwards compatibility."""
+        assert trigger.get_memory_files({"memoryFiles": "CLAUDE.md"}) == ["CLAUDE.md"]
+
+
+class TestGetActiveMemoryFile:
+    """Tests for get_active_memory_file - selects the file that gets full content."""
+
+    def test_returns_agents_when_agents_present(self):
+        """AGENTS.md wins when only AGENTS.md configured."""
+        assert trigger.get_active_memory_file(["AGENTS.md"]) == "AGENTS.md"
+
+    def test_returns_agents_when_both(self):
+        """AGENTS.md wins when both CLAUDE.md and AGENTS.md configured."""
+        assert trigger.get_active_memory_file(["CLAUDE.md", "AGENTS.md"]) == "AGENTS.md"
+
+    def test_returns_claude_when_only_claude(self):
+        """CLAUDE.md returned when it is the only configured file."""
+        assert trigger.get_active_memory_file(["CLAUDE.md"]) == "CLAUDE.md"
 
 
 class TestDirtyFilePath:
@@ -242,6 +284,22 @@ class TestBuildSpawnReason:
         reason = trigger.build_spawn_reason(["/file.py"])
         assert "Read tool" in reason
         assert "CLAUDE.md" in reason
+
+    def test_prompt_references_active_file_claude(self):
+        """Without memoryFiles config, prompt references CLAUDE.md."""
+        reason = trigger.build_spawn_reason(["/file.py"], {})
+        assert "Update CLAUDE.md" in reason
+
+    def test_prompt_references_active_file_agents(self):
+        """With AGENTS.md configured, prompt references AGENTS.md."""
+        reason = trigger.build_spawn_reason(["/file.py"], {"memoryFiles": ["AGENTS.md"]})
+        assert "Update AGENTS.md" in reason
+
+    def test_read_instruction_references_active_file(self):
+        """With AGENTS.md configured, Read instruction mentions AGENTS.md."""
+        reason = trigger.build_spawn_reason(["/file.py"], {"memoryFiles": ["AGENTS.md"]})
+        assert "AGENTS.md" in reason
+        assert "Read tool" in reason
 
 
 class TestHandleStop:
@@ -691,8 +749,8 @@ class TestCleanupStaleSessions:
         # Should not raise
 
 
-class TestAutoCommitClaudeMd:
-    """Tests for auto_commit_claude_md - stages and commits CLAUDE.md files."""
+class TestAutoCommitMemoryFiles:
+    """Tests for auto_commit_memory_files - stages and commits memory files."""
 
     def _init_git_repo(self, tmp_path):
         """Initialize a git repo with an initial commit."""
@@ -731,7 +789,8 @@ class TestAutoCommitClaudeMd:
         # Modify CLAUDE.md (simulating memory-updater)
         claude_md.write_text("# Updated by auto-memory")
 
-        result = trigger.auto_commit_claude_md(str(tmp_path))
+        claude_config: dict[str, Any] = {"triggerMode": "default"}
+        result = trigger.auto_commit_memory_files(str(tmp_path), claude_config)
         assert result is True
 
         # Verify commit was made
@@ -756,11 +815,11 @@ class TestAutoCommitClaudeMd:
             capture_output=True,
         )
 
-        result = trigger.auto_commit_claude_md(str(tmp_path))
+        result = trigger.auto_commit_memory_files(str(tmp_path), {})
         assert result is False
 
     def test_commit_message_format(self, tmp_path):
-        """Commit message matches expected format."""
+        """Commit message is 'chore: update CLAUDE.md [auto-memory]' for default config."""
         self._init_git_repo(tmp_path)
         claude_md = tmp_path / "CLAUDE.md"
         claude_md.write_text("# Initial")
@@ -772,7 +831,7 @@ class TestAutoCommitClaudeMd:
         )
         claude_md.write_text("# Updated")
 
-        trigger.auto_commit_claude_md(str(tmp_path))
+        trigger.auto_commit_memory_files(str(tmp_path), {})
 
         log = subprocess.run(
             ["git", "log", "-1", "--format=%s"],
@@ -800,7 +859,7 @@ class TestAutoCommitClaudeMd:
         claude_md.write_text("# Updated")
         other.write_text("# modified")
 
-        trigger.auto_commit_claude_md(str(tmp_path))
+        trigger.auto_commit_memory_files(str(tmp_path), {})
 
         # other.py should still show as modified (not committed)
         status = subprocess.run(
@@ -817,7 +876,7 @@ class TestAutoCommitClaudeMd:
         claude_md = tmp_path / "CLAUDE.md"
         claude_md.write_text("# Not a repo")
 
-        result = trigger.auto_commit_claude_md(str(tmp_path))
+        result = trigger.auto_commit_memory_files(str(tmp_path), {})
         assert result is False
 
     def test_commits_subtree_claude_md(self, tmp_path):
@@ -840,7 +899,7 @@ class TestAutoCommitClaudeMd:
         root_md.write_text("# Root updated")
         sub_md.write_text("# Sub updated")
 
-        result = trigger.auto_commit_claude_md(str(tmp_path))
+        result = trigger.auto_commit_memory_files(str(tmp_path), {})
         assert result is True
 
         # Both should be committed
@@ -852,6 +911,146 @@ class TestAutoCommitClaudeMd:
         )
         assert "CLAUDE.md" in show.stdout
         assert "src/CLAUDE.md" in show.stdout
+
+    def test_commits_agents_md_when_configured(self, tmp_path):
+        """Commits AGENTS.md when memoryFiles is set to AGENTS.md."""
+        self._init_git_repo(tmp_path)
+        agents_md = tmp_path / "AGENTS.md"
+        agents_md.write_text("# Initial")
+        subprocess.run(["git", "add", "AGENTS.md"], cwd=tmp_path, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "Add AGENTS.md"],
+            cwd=tmp_path,
+            capture_output=True,
+        )
+        agents_md.write_text("# Updated by auto-memory")
+
+        config: dict[str, Any] = {"memoryFiles": ["AGENTS.md"]}
+        result = trigger.auto_commit_memory_files(str(tmp_path), config)
+        assert result is True
+
+        show = subprocess.run(
+            ["git", "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD"],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+        )
+        assert "AGENTS.md" in show.stdout
+
+    def test_commits_both_when_both_configured(self, tmp_path):
+        """Commits both CLAUDE.md and AGENTS.md in a single commit."""
+        self._init_git_repo(tmp_path)
+        (tmp_path / "CLAUDE.md").write_text("# Redirect")
+        (tmp_path / "AGENTS.md").write_text("# Initial")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "Add memory files"],
+            cwd=tmp_path,
+            capture_output=True,
+        )
+        (tmp_path / "CLAUDE.md").write_text("# Redirect v2")
+        (tmp_path / "AGENTS.md").write_text("# Updated")
+
+        config = {"memoryFiles": ["CLAUDE.md", "AGENTS.md"]}
+        result = trigger.auto_commit_memory_files(str(tmp_path), config)
+        assert result is True
+
+        show = subprocess.run(
+            ["git", "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD"],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+        )
+        assert "CLAUDE.md" in show.stdout
+        assert "AGENTS.md" in show.stdout
+
+    def test_does_not_commit_non_memory_file(self, tmp_path):
+        """CLAUDE.md is not committed when only AGENTS.md is configured."""
+        self._init_git_repo(tmp_path)
+        (tmp_path / "CLAUDE.md").write_text("# Read AGENTS.md")
+        (tmp_path / "AGENTS.md").write_text("# Initial")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "Add files"],
+            cwd=tmp_path,
+            capture_output=True,
+        )
+        # Only CLAUDE.md modified; AGENTS.md not modified
+        (tmp_path / "CLAUDE.md").write_text("# Modified redirect")
+
+        config = {"memoryFiles": ["AGENTS.md"]}
+        result = trigger.auto_commit_memory_files(str(tmp_path), config)
+        assert result is False  # CLAUDE.md not in memoryFiles, nothing to commit
+
+    def test_commit_message_generic_when_agents_involved(self, tmp_path):
+        """Commit message is generic when AGENTS.md is in memoryFiles."""
+        self._init_git_repo(tmp_path)
+        agents_md = tmp_path / "AGENTS.md"
+        agents_md.write_text("# Initial")
+        subprocess.run(["git", "add", "AGENTS.md"], cwd=tmp_path, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "Add AGENTS.md"],
+            cwd=tmp_path,
+            capture_output=True,
+        )
+        agents_md.write_text("# Updated")
+
+        trigger.auto_commit_memory_files(str(tmp_path), {"memoryFiles": ["AGENTS.md"]})
+
+        log = subprocess.run(
+            ["git", "log", "-1", "--format=%s"],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+        )
+        assert log.stdout.strip() == "chore: update memory files [auto-memory]"
+
+    def test_returns_false_when_no_matching_files_modified(self, tmp_path):
+        """Returns False when only non-configured memory files are modified."""
+        self._init_git_repo(tmp_path)
+        (tmp_path / "AGENTS.md").write_text("# Initial")
+        (tmp_path / "CLAUDE.md").write_text("# Initial")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "Add files"],
+            cwd=tmp_path,
+            capture_output=True,
+        )
+        # Modify CLAUDE.md but config only tracks AGENTS.md
+        (tmp_path / "CLAUDE.md").write_text("# Modified")
+
+        result = trigger.auto_commit_memory_files(str(tmp_path), {"memoryFiles": ["AGENTS.md"]})
+        assert result is False
+
+    def test_commits_subtree_agents_md(self, tmp_path):
+        """Commits AGENTS.md files in subdirectories too."""
+        self._init_git_repo(tmp_path)
+        root_agents = tmp_path / "AGENTS.md"
+        root_agents.write_text("# Root")
+        sub_dir = tmp_path / "src"
+        sub_dir.mkdir()
+        sub_agents = sub_dir / "AGENTS.md"
+        sub_agents.write_text("# Sub")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "Add AGENTS.md files"],
+            cwd=tmp_path,
+            capture_output=True,
+        )
+        root_agents.write_text("# Root updated")
+        sub_agents.write_text("# Sub updated")
+
+        result = trigger.auto_commit_memory_files(str(tmp_path), {"memoryFiles": ["AGENTS.md"]})
+        assert result is True
+
+        show = subprocess.run(
+            ["git", "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD"],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+        )
+        assert "AGENTS.md" in show.stdout
+        assert "src/AGENTS.md" in show.stdout
 
 
 class TestAutoPush:

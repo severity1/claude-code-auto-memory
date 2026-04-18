@@ -419,6 +419,64 @@ class TestPostToolUseHook:
         plain_dirty = tmp_path / ".claude" / "auto-memory" / "dirty-files"
         assert not plain_dirty.exists()
 
+    def test_does_not_track_agents_md_edit(self, tmp_path):
+        """AGENTS.md edits are not tracked when it is a configured memory file."""
+        config_dir = tmp_path / ".claude" / "auto-memory"
+        config_dir.mkdir(parents=True, exist_ok=True)
+        (config_dir / "config.json").write_text(
+            json.dumps({"triggerMode": "default", "memoryFiles": ["AGENTS.md"]})
+        )
+        file_path = str(tmp_path / "AGENTS.md")
+        env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
+        subprocess.run(
+            [sys.executable, SCRIPTS_DIR / "post-tool-use.py"],
+            env={**os.environ, **env},
+            input=self._make_tool_input(file_path),
+            capture_output=True,
+            text=True,
+        )
+        dirty_file = config_dir / "dirty-files"
+        assert not dirty_file.exists()
+
+    def test_does_not_track_either_memory_file_when_both(self, tmp_path):
+        """Neither CLAUDE.md nor AGENTS.md is tracked when both are configured."""
+        config_dir = tmp_path / ".claude" / "auto-memory"
+        config_dir.mkdir(parents=True, exist_ok=True)
+        (config_dir / "config.json").write_text(
+            json.dumps({"triggerMode": "default", "memoryFiles": ["CLAUDE.md", "AGENTS.md"]})
+        )
+        env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
+        for filename in ("CLAUDE.md", "AGENTS.md"):
+            subprocess.run(
+                [sys.executable, SCRIPTS_DIR / "post-tool-use.py"],
+                env={**os.environ, **env},
+                input=self._make_tool_input(str(tmp_path / filename)),
+                capture_output=True,
+                text=True,
+            )
+        dirty_file = config_dir / "dirty-files"
+        assert not dirty_file.exists()
+
+    def test_tracks_source_file_with_agents_only_config(self, tmp_path):
+        """Non-memory files are still tracked when memoryFiles is set to AGENTS.md."""
+        config_dir = tmp_path / ".claude" / "auto-memory"
+        config_dir.mkdir(parents=True, exist_ok=True)
+        (config_dir / "config.json").write_text(
+            json.dumps({"triggerMode": "default", "memoryFiles": ["AGENTS.md"]})
+        )
+        file_path = str(tmp_path / "src" / "main.py")
+        env = {"CLAUDE_PROJECT_DIR": str(tmp_path)}
+        subprocess.run(
+            [sys.executable, SCRIPTS_DIR / "post-tool-use.py"],
+            env={**os.environ, **env},
+            input=self._make_tool_input(file_path),
+            capture_output=True,
+            text=True,
+        )
+        dirty_file = config_dir / "dirty-files"
+        assert dirty_file.exists()
+        assert "main.py" in dirty_file.read_text()
+
     def test_falls_back_to_plain_dirty_file(self, tmp_path):
         """Without session_id, writes to plain dirty-files."""
         self._init_config(tmp_path)
@@ -1213,3 +1271,50 @@ class TestExtractFilesFromBash:
     def test_returns_empty_for_degenerate_inputs(self, cmd):
         """Degenerate inputs (empty, flags only, missing args) return []."""
         assert self.fn(cmd, "/tmp") == []
+
+
+class TestShouldTrack:
+    """Unit tests for should_track() memory-file exclusion with configurable memoryFiles."""
+
+    def setup_method(self):
+        sys.path.insert(0, str(SCRIPTS_DIR))
+        from importlib import import_module
+
+        self.mod = import_module("post-tool-use")
+        self.fn = self.mod.should_track
+
+    def teardown_method(self):
+        sys.path.pop(0)
+        sys.modules.pop("post-tool-use", None)
+
+    def test_default_still_excludes_claude_md(self, tmp_path):
+        """CLAUDE.md is excluded by default (no memoryFiles in config)."""
+        assert self.fn(str(tmp_path / "CLAUDE.md"), str(tmp_path)) is False
+
+    def test_excludes_agents_md_when_configured(self, tmp_path):
+        """AGENTS.md is excluded when memoryFiles includes it."""
+        assert self.fn(str(tmp_path / "AGENTS.md"), str(tmp_path), ["AGENTS.md"]) is False
+
+    def test_excludes_claude_md_when_both_configured(self, tmp_path):
+        """CLAUDE.md is excluded when both files are configured."""
+        assert (
+            self.fn(str(tmp_path / "CLAUDE.md"), str(tmp_path), ["CLAUDE.md", "AGENTS.md"]) is False
+        )
+
+    def test_excludes_agents_md_when_both_configured(self, tmp_path):
+        """AGENTS.md is excluded when both files are configured."""
+        assert (
+            self.fn(str(tmp_path / "AGENTS.md"), str(tmp_path), ["CLAUDE.md", "AGENTS.md"]) is False
+        )
+
+    def test_does_not_exclude_agents_py(self, tmp_path):
+        """AGENTS.py is not excluded - only the exact memory file names are filtered."""
+        assert self.fn(str(tmp_path / "agents.py"), str(tmp_path), ["AGENTS.md"]) is True
+
+    def test_does_not_exclude_claude_when_agents_only(self, tmp_path):
+        """CLAUDE.md is tracked when memoryFiles is set to AGENTS.md only."""
+        assert self.fn(str(tmp_path / "CLAUDE.md"), str(tmp_path), ["AGENTS.md"]) is True
+
+    def test_regular_file_still_tracked(self, tmp_path):
+        """Regular source files are always tracked."""
+        assert self.fn(str(tmp_path / "src" / "main.py"), str(tmp_path)) is True

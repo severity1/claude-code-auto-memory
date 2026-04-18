@@ -48,6 +48,19 @@ def load_config(project_dir: str) -> dict[str, Any]:
     return {"triggerMode": "default"}
 
 
+def get_memory_files(config: dict[str, Any]) -> list[str]:
+    """Return the list of memory file names from config, defaulting to CLAUDE.md."""
+    v = config.get("memoryFiles", ["CLAUDE.md"])
+    if isinstance(v, str):
+        return [v]
+    return v if v else ["CLAUDE.md"]
+
+
+def get_active_memory_file(memory_files: list[str]) -> str:
+    """Return the file that receives full content. AGENTS.md wins when both are configured."""
+    return "AGENTS.md" if "AGENTS.md" in memory_files else "CLAUDE.md"
+
+
 def dirty_file_path(project_dir: str, session_id: str = "") -> Path:
     """Return path to session-specific or default dirty-files."""
     base = Path(project_dir) / ".claude" / "auto-memory"
@@ -80,16 +93,17 @@ def read_dirty_files(project_dir: str, session_id: str = "") -> list[str]:
     return sorted(files)[:20]
 
 
-def build_spawn_reason(files: list[str]) -> str:
+def build_spawn_reason(files: list[str], config: dict[str, Any] | None = None) -> str:
     """Build the agent spawn instruction text with Task tool parameters."""
     files_str = ", ".join(files)
+    active = get_active_memory_file(get_memory_files(config or {}))
     return (
         f"Files were modified this turn. Use the Task tool with "
         f"run_in_background set to false and mode set to bypassPermissions "
         f"to spawn 'memory-updater' agent with subagent_type set to "
-        f"'auto-memory:memory-updater' and prompt: 'Update CLAUDE.md for "
+        f"'auto-memory:memory-updater' and prompt: 'Update {active} for "
         f"changed files: {files_str}'. After the agent completes, use the "
-        f"Read tool to read the root CLAUDE.md file to refresh your memory."
+        f"Read tool to read the root {active} file to refresh your memory."
     )
 
 
@@ -121,7 +135,7 @@ def handle_stop(input_data: dict[str, Any], project_dir: str) -> None:
 
     output = {
         "decision": "block",
-        "reason": build_spawn_reason(files),
+        "reason": build_spawn_reason(files, config),
     }
     print(json.dumps(output))
 
@@ -152,9 +166,11 @@ def cleanup_stale_session_files(project_dir: str, max_age_hours: int = 24) -> No
             pass
 
 
-def auto_commit_claude_md(project_dir: str) -> bool:
-    """Stage and commit modified CLAUDE.md files. Returns True on success."""
-    # Find modified CLAUDE.md files (tracked, unstaged changes)
+def auto_commit_memory_files(project_dir: str, config: dict[str, Any]) -> bool:
+    """Stage and commit modified memory files (CLAUDE.md, AGENTS.md). Returns True on success."""
+    memory_files = get_memory_files(config)
+
+    # Find modified tracked files
     result = subprocess.run(
         ["git", "diff", "--name-only", "--diff-filter=M"],
         capture_output=True,
@@ -164,17 +180,17 @@ def auto_commit_claude_md(project_dir: str) -> bool:
     if result.returncode != 0:
         return False
 
-    claude_files = [
+    matched = [
         f.strip()
         for f in result.stdout.strip().split("\n")
-        if f.strip() and f.strip().endswith("CLAUDE.md")
+        if f.strip() and any(f.strip().endswith(name) for name in memory_files)
     ]
-    if not claude_files:
+    if not matched:
         return False
 
-    # Stage only CLAUDE.md files
+    # Stage only the matched memory files
     stage = subprocess.run(
-        ["git", "add"] + claude_files,
+        ["git", "add"] + matched,
         capture_output=True,
         text=True,
         cwd=project_dir,
@@ -182,9 +198,14 @@ def auto_commit_claude_md(project_dir: str) -> bool:
     if stage.returncode != 0:
         return False
 
-    # Commit
+    # Commit message reflects which files are managed
+    if memory_files == ["CLAUDE.md"]:
+        msg = "chore: update CLAUDE.md [auto-memory]"
+    else:
+        msg = "chore: update memory files [auto-memory]"
+
     commit = subprocess.run(
-        ["git", "commit", "-m", "chore: update CLAUDE.md [auto-memory]"],
+        ["git", "commit", "-m", msg],
         capture_output=True,
         text=True,
         cwd=project_dir,
@@ -223,7 +244,7 @@ def handle_subagent_stop(input_data: dict[str, Any], project_dir: str) -> None:
     # Auto-commit/push before clearing dirty files
     config = load_config(project_dir)
     if config.get("autoCommit", False):
-        if auto_commit_claude_md(project_dir):
+        if auto_commit_memory_files(project_dir, config):
             if config.get("autoPush", False):
                 auto_push(project_dir)
 
@@ -259,6 +280,7 @@ def handle_pre_tool_use(input_data: dict[str, Any], project_dir: str) -> None:
     if not files:
         return
 
+    active = get_active_memory_file(get_memory_files(config))
     files_str = ", ".join(files)
     output = {
         "hookSpecificOutput": {
@@ -268,7 +290,7 @@ def handle_pre_tool_use(input_data: dict[str, Any], project_dir: str) -> None:
                 f"Files were modified since last memory update. Use the Task tool "
                 f"with run_in_background set to false and mode set to "
                 f"bypassPermissions to spawn 'memory-updater' agent with subagent_type "
-                f"set to 'auto-memory:memory-updater' and prompt: 'Update CLAUDE.md "
+                f"set to 'auto-memory:memory-updater' and prompt: 'Update {active} "
                 f"for changed files: {files_str}'. After the agent completes, retry "
                 f"the git commit."
             ),

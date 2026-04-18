@@ -20,7 +20,7 @@ Use this when you've edited files manually (outside Claude Code) and want to upd
 
 3. **Filter files** (exclude from processing):
    - Files in `.claude/` directory
-   - `CLAUDE.md` files
+   - Memory files: read `memoryFiles` from `.claude/auto-memory/config.json` (default `["CLAUDE.md"]`) and exclude any file whose name appears in that list
    - Files outside project directory
 
 4. **If no changes detected**: Report "Already in sync - no manual changes found"
@@ -29,7 +29,7 @@ Use this when you've edited files manually (outside Claude Code) and want to upd
    - Convert paths to absolute paths
    - Write to `.claude/auto-memory/dirty-files` (one path per line, or `dirty-files-{session_id}` if session_id is available from the environment)
    - Use the Task tool to spawn the `memory-updater` agent with prompt:
-     "Update CLAUDE.md for manually changed files: [file list]"
+     "Update [active memory file] for manually changed files: [file list]" (use AGENTS.md or CLAUDE.md per the memoryFiles config)
 
 6. **Report summary**: List files that were processed
 
