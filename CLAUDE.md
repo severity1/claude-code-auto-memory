@@ -5,13 +5,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 <!-- AUTO-MANAGED: project-description -->
 ## Overview
 
-**claude-code-auto-memory** - A Claude Code plugin that automatically maintains CLAUDE.md files as codebases evolve. Tracks file changes via hooks, spawns agents to update memory, and provides skills for codebase analysis.
+**claude-code-auto-memory** - A Claude Code plugin that automatically maintains CLAUDE.md files (or AGENTS.md for multi-agent repos) as codebases evolve. Tracks file changes via hooks, spawns agents to update memory, and provides skills for codebase analysis.
 
 Key features:
 - Real-time file tracking via PostToolUse hooks
 - Stop hook integration to trigger memory updates
 - Codebase analyzer skill for initial setup
 - Memory processor skill for ongoing updates
+- AGENTS.md support for multi-agent workflows (OpenAI Codex, Gemini, etc.)
 
 <!-- END AUTO-MANAGED -->
 
@@ -79,10 +80,11 @@ Data flow:
 
 Configuration:
 - Trigger modes: `default` (after every turn) or `gitmode` (only after git commits)
-- `autoCommit`: When true, auto-commits CLAUDE.md changes after memory-updater completes
+- `memoryFiles`: Array specifying which memory file(s) to maintain - `["CLAUDE.md"]` (default), `["AGENTS.md"]`, or `["CLAUDE.md", "AGENTS.md"]` (AGENTS.md holds content, CLAUDE.md redirects)
+- `autoCommit`: When true, auto-commits memory file changes after memory-updater completes
 - `autoPush`: When true (requires autoCommit), pushes commits to remote
 - Config stored in `.claude/auto-memory/config.json`
-- Init wizard interactively configures triggerMode, autoCommit, and autoPush, then updates `.gitignore` to exclude `dirty-files*` tracking files
+- Init wizard interactively configures triggerMode, memoryFiles, autoCommit, and autoPush, then updates `.gitignore` to exclude `dirty-files*` tracking files
 
 <!-- END AUTO-MANAGED -->
 
@@ -119,6 +121,9 @@ Configuration:
 - **Gitignore Management Pattern**: `/auto-memory:init` appends `.claude/auto-memory/dirty-files*` to `.gitignore` (creates file if absent) so tracking files are never committed
 - **Bash Tracking Scope Pattern**: `extract_files_from_bash()` only tracks explicit file-destructive commands (rm, git rm, mv, git mv, unlink); all other Bash commands (read-only, build tools, package managers) are skipped; parser stops at shell operators (`&&`, `||`, `;`, `|`) and redirects
 - **Test Init Helper Pattern**: `_init_config(tmp_path)` creates `.claude/auto-memory/config.json` in tests to satisfy the `plugin_initialized()` guard; tests that verify inert behavior deliberately omit this call
+- **Memory File Selection Pattern**: `memoryFiles` in config.json determines active memory file; memory-updater reads config to find `AGENTS.md` or `CLAUDE.md` instances; skills and commands all respect this config rather than hardcoding CLAUDE.md
+- **AGENTS.md Redirect Pattern**: When both CLAUDE.md and AGENTS.md are configured, CLAUDE.md contains a single-line redirect (`Read AGENTS.md in this directory for project context.`); memory-processor skips updating redirect files
+- **Multi-Agent Memory Pattern**: AGENTS.md support enables shared memory across Claude Code, OpenAI Codex, Gemini, and other agents that read AGENTS.md; auto-commit message uses `chore: update memory files [auto-memory]` when AGENTS.md is involved
 
 <!-- END AUTO-MANAGED -->
 
@@ -142,6 +147,7 @@ Recent design decisions from commit history:
 - Auto-commit/push toggle (#18): autoCommit and autoPush config options in SubagentStop handler, commits only CLAUDE.md files with graceful failure handling
 - handle_subagent_stop signature changed from (project_dir) to (input_data, project_dir) to receive session_id and support auto-commit config loading
 - SubagentStop cleanup fix (#28/#29): build_spawn_reason() now explicitly passes subagent_type='auto-memory:memory-updater' in Task tool spawn instructions - omitting it caused SubagentStop to not fire and dirty-files to never be cleared
+- AGENTS.md support added (#14, v0.9.2): `memoryFiles` config option enables maintaining AGENTS.md instead of or alongside CLAUDE.md; init wizard, status, sync, codebase-analyzer, and memory-processor all updated to respect this config; CLAUDE.md redirect file generated when both are configured
 
 <!-- END AUTO-MANAGED -->
 
