@@ -5,7 +5,7 @@ description: Process file changes and update CLAUDE.md memory sections. Use when
 
 # Memory Processor
 
-Process changed files and update relevant CLAUDE.md sections following official guidelines.
+Process changed files and update relevant memory file sections (CLAUDE.md or AGENTS.md, whichever is the active file per project config) following official guidelines.
 
 ## Guidelines
 
@@ -20,7 +20,7 @@ Process changed files and update relevant CLAUDE.md sections following official 
    - File content summaries
    - Detected dependencies
    - Git context (commits, diffs)
-   - Target CLAUDE.md files
+   - Target memory files (CLAUDE.md or AGENTS.md per project config)
 
 2. **Categorize changes**: Map files to CLAUDE.md sections using the tables in "Section Names" below. Match changed files to their update triggers.
 
@@ -59,10 +59,11 @@ Process changed files and update relevant CLAUDE.md sections following official 
    - Architecture: `utils/` directory deleted → verify no `utils/` references remain
    - Build command: `npm run dev` removed from package.json → verify script is gone
 
-5. **Update CLAUDE.md**: Modify relevant sections:
+5. **Update memory file**: Modify relevant sections in the active memory file:
    - Preserve AUTO-MANAGED markers
    - Never touch MANUAL sections
    - Apply content rules (specific, concise, structured)
+   - Do not modify CLAUDE.md redirect files (files containing only "Read AGENTS.md...")
 
 6. **Validate**: Ensure updates follow guidelines:
    - No generic instructions added
@@ -115,6 +116,6 @@ Content that will never be touched
 ## Output
 
 Return a brief summary:
-- "Updated [section names] in [CLAUDE.md path] based on changes to [file names]"
+- "Updated [section names] in [memory file path] based on changes to [file names]"
 - "Removed [pattern] from [section] - no longer used in codebase"
 - "No updates needed - changes do not affect documented sections"

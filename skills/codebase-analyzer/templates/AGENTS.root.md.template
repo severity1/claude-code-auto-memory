@@ -1,0 +1,59 @@
+# AGENTS.md
+
+This file provides guidance to AI coding agents when working with code in this repository.
+
+<!-- AUTO-MANAGED: project-description -->
+## Overview
+
+{{DESCRIPTION}}
+
+<!-- END AUTO-MANAGED -->
+
+<!-- AUTO-MANAGED: build-commands -->
+## Build & Development Commands
+
+{{BUILD_COMMANDS}}
+
+<!-- END AUTO-MANAGED -->
+
+<!-- AUTO-MANAGED: architecture -->
+## Architecture
+
+{{ARCHITECTURE}}
+
+<!-- END AUTO-MANAGED -->
+
+<!-- AUTO-MANAGED: conventions -->
+## Code Conventions
+
+{{CONVENTIONS}}
+
+<!-- END AUTO-MANAGED -->
+
+<!-- AUTO-MANAGED: patterns -->
+## Detected Patterns
+
+{{PATTERNS}}
+
+<!-- END AUTO-MANAGED -->
+
+<!-- AUTO-MANAGED: git-insights -->
+## Git Insights
+
+{{GIT_INSIGHTS}}
+
+<!-- END AUTO-MANAGED -->
+
+<!-- AUTO-MANAGED: best-practices -->
+## Best Practices
+
+{{BEST_PRACTICES}}
+
+<!-- END AUTO-MANAGED -->
+
+<!-- MANUAL -->
+## Custom Notes
+
+Add project-specific notes here. This section is never auto-modified.
+
+<!-- END MANUAL -->

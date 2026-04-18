@@ -50,6 +50,14 @@ def load_config(project_dir: str) -> dict[str, Any]:
     return {"triggerMode": "default"}
 
 
+def get_memory_files(config: dict[str, Any]) -> list[str]:
+    """Return the list of memory file names from config, defaulting to CLAUDE.md."""
+    v = config.get("memoryFiles", ["CLAUDE.md"])
+    if isinstance(v, str):
+        return [v]
+    return v if v else ["CLAUDE.md"]
+
+
 def handle_git_commit(project_dir: str) -> tuple[list[str], dict[str, str] | None]:
     """Extract context from a git commit.
 
@@ -95,8 +103,8 @@ def dirty_file_path(project_dir: str, session_id: str = "") -> Path:
     return base / "dirty-files"
 
 
-def should_track(file_path: str, project_dir: str) -> bool:
-    """Check if file should be tracked for CLAUDE.md updates."""
+def should_track(file_path: str, project_dir: str, memory_files: list[str] | None = None) -> bool:
+    """Check if file should be tracked for memory file updates."""
     path = Path(file_path)
 
     # Only track files within the project directory
@@ -109,8 +117,9 @@ def should_track(file_path: str, project_dir: str) -> bool:
     if relative.parts and relative.parts[0] == ".claude":
         return False
 
-    # Exclude CLAUDE.md files anywhere (prevents infinite loops)
-    if path.name == "CLAUDE.md":
+    # Exclude memory files anywhere (prevents infinite loops when they are updated)
+    names = memory_files if memory_files is not None else ["CLAUDE.md"]
+    if path.name in names:
         return False
 
     return True
@@ -337,7 +346,8 @@ def main() -> None:
         return
 
     # Filter to only trackable files
-    trackable = [f for f in files_to_track if should_track(f, project_dir)]
+    memory_files = get_memory_files(config)
+    trackable = [f for f in files_to_track if should_track(f, project_dir, memory_files)]
 
     if not trackable:
         return

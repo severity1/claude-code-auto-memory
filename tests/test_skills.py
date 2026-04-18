@@ -168,3 +168,70 @@ class TestTemplates:
         lines = content.split("\n")
         # Template should be under 50 lines
         assert len(lines) < 50
+
+
+class TestAgentsMdTemplates:
+    """Tests for AGENTS.md templates (#14 - AGENTS.md support)."""
+
+    @pytest.fixture
+    def templates_dir(self):
+        return SKILLS_DIR / "codebase-analyzer" / "templates"
+
+    @pytest.fixture
+    def agents_root(self, templates_dir):
+        return templates_dir / "AGENTS.root.md.template"
+
+    @pytest.fixture
+    def agents_subtree(self, templates_dir):
+        return templates_dir / "AGENTS.subtree.md.template"
+
+    @pytest.fixture
+    def claude_redirect(self, templates_dir):
+        return templates_dir / "CLAUDE.redirect.md.template"
+
+    def test_agents_root_template_exists(self, agents_root):
+        """AGENTS.root.md.template exists."""
+        assert agents_root.exists()
+
+    def test_agents_subtree_template_exists(self, agents_subtree):
+        """AGENTS.subtree.md.template exists."""
+        assert agents_subtree.exists()
+
+    def test_claude_redirect_template_exists(self, claude_redirect):
+        """CLAUDE.redirect.md.template exists."""
+        assert claude_redirect.exists()
+
+    def test_agents_root_has_markers(self, agents_root):
+        """AGENTS root template has AUTO-MANAGED markers."""
+        content = agents_root.read_text()
+        assert "<!-- AUTO-MANAGED:" in content
+        assert "<!-- END AUTO-MANAGED -->" in content
+
+    def test_agents_root_has_manual_section(self, agents_root):
+        """AGENTS root template has MANUAL section."""
+        content = agents_root.read_text()
+        assert "<!-- MANUAL -->" in content
+        assert "<!-- END MANUAL -->" in content
+
+    def test_agents_root_has_placeholders(self, agents_root):
+        """AGENTS root template has {{PLACEHOLDER}} tokens."""
+        content = agents_root.read_text()
+        placeholders = re.findall(r"\{\{(\w+)\}\}", content)
+        assert "DESCRIPTION" in placeholders
+        assert "BUILD_COMMANDS" in placeholders
+
+    def test_agents_subtree_has_markers(self, agents_subtree):
+        """AGENTS subtree template has AUTO-MANAGED markers."""
+        content = agents_subtree.read_text()
+        assert "<!-- AUTO-MANAGED:" in content
+        assert "<!-- END AUTO-MANAGED -->" in content
+
+    def test_claude_redirect_has_redirect_text(self, claude_redirect):
+        """CLAUDE.redirect template contains the AGENTS.md redirect instruction."""
+        content = claude_redirect.read_text()
+        assert "Read AGENTS.md" in content
+
+    def test_claude_redirect_does_not_have_auto_managed_markers(self, claude_redirect):
+        """CLAUDE.redirect template is static - no AUTO-MANAGED markers."""
+        content = claude_redirect.read_text()
+        assert "<!-- AUTO-MANAGED:" not in content

@@ -23,6 +23,24 @@ Save the selection to `.claude/auto-memory/config.json`:
 }
 ```
 
+### Step 1a: Configure Memory File(s)
+
+Ask the user which memory file(s) auto-memory should maintain using AskUserQuestion:
+
+**Question**: "Which memory file(s) should auto-memory maintain?"
+
+**Options**:
+- **CLAUDE.md only** (default): Standard Claude Code memory file. Best for projects using Claude Code exclusively.
+- **AGENTS.md only**: Memory stored in AGENTS.md. Best for projects using OpenAI Codex, Gemini, or other agents that read AGENTS.md.
+- **Both - AGENTS.md for content, CLAUDE.md redirects to it**: AGENTS.md holds full memory; CLAUDE.md contains a one-line redirect. Best when multiple AI coding agents collaborate on the same repo.
+
+Update `.claude/auto-memory/config.json` with the selection:
+- CLAUDE.md only: omit `memoryFiles` (or set `"memoryFiles": ["CLAUDE.md"]`)
+- AGENTS.md only: `"memoryFiles": ["AGENTS.md"]`
+- Both: `"memoryFiles": ["CLAUDE.md", "AGENTS.md"]`
+
+When "Both" is selected, also generate the redirect `CLAUDE.md` at the project root using the `CLAUDE.redirect.md.template` - a static file with the single line: `Read AGENTS.md in this directory for project context.`
+
 ### Step 1b: Configure Auto-Commit (Optional)
 
 Ask the user if they want CLAUDE.md changes auto-committed using AskUserQuestion:
@@ -30,8 +48,8 @@ Ask the user if they want CLAUDE.md changes auto-committed using AskUserQuestion
 **Question**: "Should auto-memory automatically commit CLAUDE.md changes after updates?"
 
 **Options**:
-- **No** (default): CLAUDE.md changes remain as local modifications. You commit them manually.
-- **Yes**: Automatically commit CLAUDE.md files after each memory update. Commit message: `chore: update CLAUDE.md [auto-memory]`
+- **No** (default): Memory file changes remain as local modifications. You commit them manually.
+- **Yes**: Automatically commit memory files after each memory update. Commit message: `chore: update CLAUDE.md [auto-memory]` (or `chore: update memory files [auto-memory]` when AGENTS.md is involved)
 
 If the user selects Yes, also ask about auto-push:
 

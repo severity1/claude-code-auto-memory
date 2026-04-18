@@ -65,16 +65,28 @@ Use AskUserQuestion to confirm:
 - Suggested subtree locations
 - Detected patterns
 
-### 7. Generate CLAUDE.md
+### 7. Generate Memory Files
 
-Generate files using the EXACT template structure. Follow these steps precisely:
+Read `.claude/auto-memory/config.json` to determine which files to generate based on `memoryFiles`:
 
-1. **Copy template skeleton** - Use template file as the base structure
+| `memoryFiles` value | Files to generate |
+|---|---|
+| absent or `["CLAUDE.md"]` | `CLAUDE.md` only (full content) |
+| `["AGENTS.md"]` | `AGENTS.md` only (full content) |
+| `["CLAUDE.md", "AGENTS.md"]` | `AGENTS.md` (full content) + `CLAUDE.md` (redirect) |
+
+Generate full-content files using the EXACT template structure. Follow these steps precisely:
+
+1. **Copy template skeleton** - Use the appropriate template (CLAUDE or AGENTS) as the base structure
 2. **Use exact marker format** - See Marker Syntax section below
 3. **Replace placeholders** - Substitute `{{PLACEHOLDER}}` with detected content
 4. **Include all required sections** - Even if content is minimal, include the section
 5. **Add MANUAL section** at the end for user notes
 6. **Size limits**: Root 150-200 lines, Subtrees 50-75 lines
+
+When both `CLAUDE.md` and `AGENTS.md` are configured, also generate redirect files:
+- At the root: write `CLAUDE.md` using `CLAUDE.redirect.md.template` (static pointer, no markers)
+- For each subtree that gets an `AGENTS.md`: write a matching `CLAUDE.md` redirect alongside it
 
 ## Marker Syntax
 
@@ -136,11 +148,20 @@ Generate these sections in order:
 
 Reference the template files for exact structure:
 
-### Root Template
+### CLAUDE.md Root Template
 @templates/CLAUDE.root.md.template
 
-### Subtree Template
+### CLAUDE.md Subtree Template
 @templates/CLAUDE.subtree.md.template
+
+### AGENTS.md Root Template
+@templates/AGENTS.root.md.template
+
+### AGENTS.md Subtree Template
+@templates/AGENTS.subtree.md.template
+
+### CLAUDE.md Redirect Template (when both files configured)
+@templates/CLAUDE.redirect.md.template
 
 ## User Interactions
 
