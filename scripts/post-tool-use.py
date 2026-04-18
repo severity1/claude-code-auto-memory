@@ -183,10 +183,19 @@ def extract_files_from_bash(command: str, project_dir: str) -> list[str]:
     if command.startswith(skip_prefixes):
         return []
 
-    # Shell operators that chain commands - stop parsing at these
-    shell_operators = ("&&", "||", ";", "|", ">", ">>", "<", "2>", "2>&1")
+    def is_shell_op(token: str) -> bool:
+        """Return True if token is a pure shell operator or redirect."""
+        return token in {"&&", "||", ";", "|"} or token.startswith((">", "<", "2>", "1>", "&>"))
 
-    files = []
+    def process_token(token: str, files: list[str]) -> bool:
+        """Append token to files (stripping trailing semicolon) and return True to stop."""
+        stop = token.endswith(";")
+        clean = token[:-1] if stop else token
+        if clean and not clean.startswith("-"):
+            files.append(clean)
+        return stop
+
+    files: list[str] = []
 
     try:
         # Parse command into tokens
@@ -200,42 +209,47 @@ def extract_files_from_bash(command: str, project_dir: str) -> list[str]:
         if cmd == "rm":
             # Skip flags, collect file arguments until shell operator
             for token in tokens[1:]:
-                if token in shell_operators:
+                if is_shell_op(token):
                     break  # Stop at command chaining operator
-                if not token.startswith("-"):
-                    files.append(token)
+                if process_token(token, files):
+                    break
 
         # Handle: git rm
         elif cmd == "git" and len(tokens) > 1 and tokens[1] == "rm":
             for token in tokens[2:]:
-                if token in shell_operators:
+                if is_shell_op(token):
                     break
-                if not token.startswith("-"):
-                    files.append(token)
+                if process_token(token, files):
+                    break
 
         # Handle: mv (track source file only)
         elif cmd == "mv" and len(tokens) >= 3:
             # Skip flags, get first non-flag arg (source)
             for token in tokens[1:]:
-                if token in shell_operators:
+                if is_shell_op(token):
                     break
                 if not token.startswith("-"):
-                    files.append(token)
+                    clean = token[:-1] if token.endswith(";") else token
+                    if clean:
+                        files.append(clean)
                     break  # Only track source, not destination
 
         # Handle: git mv (track source file only)
         elif cmd == "git" and len(tokens) > 2 and tokens[1] == "mv":
             for token in tokens[2:]:
-                if token in shell_operators:
+                if is_shell_op(token):
                     break
                 if not token.startswith("-"):
-                    files.append(token)
+                    clean = token[:-1] if token.endswith(";") else token
+                    if clean:
+                        files.append(clean)
                     break
 
         # Handle: unlink
         elif cmd == "unlink" and len(tokens) > 1:
-            if tokens[1] not in shell_operators:
-                files.append(tokens[1])
+            t = tokens[1]
+            if not is_shell_op(t):
+                files.append(t[:-1] if t.endswith(";") else t)
 
     except ValueError:
         # shlex.split failed (unbalanced quotes, etc.) - skip

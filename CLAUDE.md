@@ -108,7 +108,7 @@ Configuration:
 - **Initialization Guard Pattern**: `plugin_initialized()` in post-tool-use.py, handle_stop(), and handle_pre_tool_use() gates all activity on config.json existence — projects that never ran /auto-memory:init are fully inert
 - **Hook Lifecycle Pattern**: PostToolUse tracks → Stop/PreToolUse blocks → Agent spawns → SubagentStop cleans up (cleanup gated on dirty-files only, not config.json, to prevent infinite loops)
 - **Separation of Concerns**: PostToolUse (silent tracking) vs Stop/PreToolUse (blocking with output) vs SubagentStop (cleanup)
-- **Dirty File Pattern**: Append-only tracking, batch processing at turn end, session-isolated via `dirty-files-{session_id}`
+- **Dirty File Pattern**: Dict-keyed deduplication (path as key), batch processing at turn end, session-isolated via `dirty-files-{session_id}`; commit context entries overwrite plain path entries when present
 - **Skill Pattern**: YAML frontmatter + markdown body with algorithm sections
 - **Template Pattern**: AUTO-MANAGED markers for updatable sections
 - **Config Pattern**: JSON config in `.claude/auto-memory/config.json` with `triggerMode`, `autoCommit`, `autoPush`
@@ -117,6 +117,8 @@ Configuration:
 - **Stale Session Cleanup Pattern**: `cleanup_stale_session_files()` removes orphaned session dirty-files older than 24h on each SubagentStop
 - **Dirty-Files Read Order**: memory-updater reads plain `dirty-files` first; checks session-specific `dirty-files-*` files only if plain file is empty or missing
 - **Gitignore Management Pattern**: `/auto-memory:init` appends `.claude/auto-memory/dirty-files*` to `.gitignore` (creates file if absent) so tracking files are never committed
+- **Bash Tracking Scope Pattern**: `extract_files_from_bash()` only tracks explicit file-destructive commands (rm, git rm, mv, git mv, unlink); all other Bash commands (read-only, build tools, package managers) are skipped; parser stops at shell operators (`&&`, `||`, `;`, `|`) and redirects
+- **Test Init Helper Pattern**: `_init_config(tmp_path)` creates `.claude/auto-memory/config.json` in tests to satisfy the `plugin_initialized()` guard; tests that verify inert behavior deliberately omit this call
 
 <!-- END AUTO-MANAGED -->
 

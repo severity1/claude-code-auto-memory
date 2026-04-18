@@ -6,6 +6,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 # Add scripts directory to path
 SCRIPTS_DIR = Path(__file__).parent.parent / "scripts"
 
@@ -1036,3 +1038,178 @@ class TestGitCommitContext:
         assert "[" in content  # Context marker
         assert ":" in content  # hash: message separator
         assert "Add module" in content
+
+
+class TestExtractFilesFromBash:
+    """Unit tests for extract_files_from_bash() shell-operator detection."""
+
+    def setup_method(self):
+        sys.path.insert(0, str(SCRIPTS_DIR))
+        from importlib import import_module
+
+        self.mod = import_module("post-tool-use")
+        self.fn = self.mod.extract_files_from_bash
+
+    def teardown_method(self):
+        sys.path.pop(0)
+        sys.modules.pop("post-tool-use", None)
+
+    def _paths(self, *names: str) -> list[str]:
+        return [str(Path("/tmp") / n) for n in names]
+
+    # ── rm: redirect variants ────────────────────────────────────────────────
+
+    @pytest.mark.parametrize(
+        "cmd,expected_names",
+        [
+            # stderr redirect glued
+            ("rm foo.txt 2>/dev/null", ["foo.txt"]),
+            # stderr redirect then chained command
+            ("rm foo.txt 2>/dev/null; echo done", ["foo.txt"]),
+            # stdout redirect glued to path
+            ("rm foo.txt >log.txt", ["foo.txt"]),
+            # append redirect
+            ("rm foo.txt >>log.txt", ["foo.txt"]),
+            # explicit stdout redirect
+            ("rm foo.txt 1>/dev/null", ["foo.txt"]),
+            # both streams redirect
+            ("rm foo.txt &>/dev/null", ["foo.txt"]),
+            # stderr-to-stdout redirect token
+            ("rm foo.txt 2>&1", ["foo.txt"]),
+            # input redirect (unusual but should stop)
+            ("rm foo.txt <input.txt", ["foo.txt"]),
+        ],
+    )
+    def test_rm_stops_at_redirects(self, cmd, expected_names):
+        """rm: parsing stops at all redirect forms."""
+        assert self.fn(cmd, "/tmp") == self._paths(*expected_names)
+
+    # ── rm: chaining operators ───────────────────────────────────────────────
+
+    @pytest.mark.parametrize(
+        "cmd,expected_names",
+        [
+            # && operator as standalone token
+            ("rm foo.txt && echo done", ["foo.txt"]),
+            # || operator as standalone token
+            ("rm foo.txt || true", ["foo.txt"]),
+            # pipe as standalone token
+            ("rm foo.txt | tee log.txt", ["foo.txt"]),
+            # semicolon as standalone token (whitespace-separated)
+            ("rm foo.txt ; ls -la", ["foo.txt"]),
+            # semicolon glued to filename
+            ("rm foo.txt; rm bar.txt", ["foo.txt"]),
+            # trailing semicolon only (no following command)
+            ("rm foo.txt;", ["foo.txt"]),
+        ],
+    )
+    def test_rm_stops_at_chain_operators(self, cmd, expected_names):
+        """rm: parsing stops at all command-chaining operators."""
+        assert self.fn(cmd, "/tmp") == self._paths(*expected_names)
+
+    # ── rm: multiple files and flags ─────────────────────────────────────────
+
+    @pytest.mark.parametrize(
+        "cmd,expected_names",
+        [
+            # multiple files, no operator
+            ("rm a.txt b.txt c.txt", ["a.txt", "b.txt", "c.txt"]),
+            # multiple files, redirect truncates list
+            ("rm a.txt b.txt 2>/dev/null", ["a.txt", "b.txt"]),
+            # flags before files
+            ("rm -rf build/ 2>/dev/null", ["build/"]),
+            # -f flag with redirect
+            ("rm -f old.py >>/dev/null", ["old.py"]),
+            # mixed flags and files
+            ("rm -rf src/ lib/ 2>/dev/null", ["src/", "lib/"]),
+        ],
+    )
+    def test_rm_multiple_files_and_flags(self, cmd, expected_names):
+        """rm: flags are skipped; multiple files collected until operator."""
+        assert self.fn(cmd, "/tmp") == self._paths(*expected_names)
+
+    # ── git rm ───────────────────────────────────────────────────────────────
+
+    @pytest.mark.parametrize(
+        "cmd,expected_names",
+        [
+            ("git rm foo.txt", ["foo.txt"]),
+            ("git rm foo.txt 2>/dev/null", ["foo.txt"]),
+            ("git rm foo.txt && git add bar.txt", ["foo.txt"]),
+            ("git rm foo.txt; echo done", ["foo.txt"]),
+            ("git rm -r dir/ 2>/dev/null", ["dir/"]),
+            ("git rm foo.txt bar.txt", ["foo.txt", "bar.txt"]),
+        ],
+    )
+    def test_git_rm_operator_detection(self, cmd, expected_names):
+        """git rm: all operator shapes stop parsing correctly."""
+        assert self.fn(cmd, "/tmp") == self._paths(*expected_names)
+
+    # ── mv ───────────────────────────────────────────────────────────────────
+
+    @pytest.mark.parametrize(
+        "cmd,expected_names",
+        [
+            # basic: only source tracked
+            ("mv old.py new.py", ["old.py"]),
+            # redirect after destination: only source tracked
+            ("mv old.py new.py 2>/dev/null", ["old.py"]),
+            # chained after mv: only source tracked
+            ("mv old.py new.py && echo ok", ["old.py"]),
+            # semicolon glued to source
+            ("mv old.py; new.py", ["old.py"]),
+            # flag before source
+            ("mv -f old.py new.py", ["old.py"]),
+        ],
+    )
+    def test_mv_tracks_source_only(self, cmd, expected_names):
+        """mv: only the source file is tracked; operators stop parsing."""
+        assert self.fn(cmd, "/tmp") == self._paths(*expected_names)
+
+    # ── git mv ───────────────────────────────────────────────────────────────
+
+    @pytest.mark.parametrize(
+        "cmd,expected_names",
+        [
+            ("git mv old.py new.py", ["old.py"]),
+            ("git mv old.py new.py 2>/dev/null", ["old.py"]),
+            ("git mv old.py new.py && git add .", ["old.py"]),
+            ("git mv -f old.py new.py", ["old.py"]),
+        ],
+    )
+    def test_git_mv_tracks_source_only(self, cmd, expected_names):
+        """git mv: only the source file is tracked; operators stop parsing."""
+        assert self.fn(cmd, "/tmp") == self._paths(*expected_names)
+
+    # ── unlink ───────────────────────────────────────────────────────────────
+
+    @pytest.mark.parametrize(
+        "cmd,expected_names",
+        [
+            ("unlink foo.txt", ["foo.txt"]),
+            ("unlink foo.txt 2>/dev/null", ["foo.txt"]),
+            ("unlink foo.txt;", ["foo.txt"]),
+            ("unlink foo.txt && echo done", ["foo.txt"]),
+        ],
+    )
+    def test_unlink_operator_detection(self, cmd, expected_names):
+        """unlink: operator-adjacent tokens are stripped or stop parsing."""
+        assert self.fn(cmd, "/tmp") == self._paths(*expected_names)
+
+    # ── edge cases ───────────────────────────────────────────────────────────
+
+    @pytest.mark.parametrize(
+        "cmd",
+        [
+            "",
+            "   ",
+            "rm",
+            "rm -rf",
+            "git rm",
+            "mv",
+            "unlink",
+        ],
+    )
+    def test_returns_empty_for_degenerate_inputs(self, cmd):
+        """Degenerate inputs (empty, flags only, missing args) return []."""
+        assert self.fn(cmd, "/tmp") == []
