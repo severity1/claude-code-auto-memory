@@ -1,3 +1,5 @@
 {
-  "triggerMode": "default"
+  "triggerMode": "gitmode",
+  "autoCommit": true,
+  "autoPush": false
 }
