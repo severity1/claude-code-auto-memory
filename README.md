@@ -1,5 +1,8 @@
 # claude-code-auto-memory
 
+[![Run in Smithery](https://smithery.ai/badge/skills/severity1)](https://smithery.ai/skills?ns=severity1&utm_source=github&utm_medium=badge)
+
+
 **Your CLAUDE.md, always in sync.** Minimal tokens. Zero config. Just works.
 
 A Claude Code plugin that watches what Claude Code edits, deletes, and moves - then quietly updates your project memory in the background. No manual maintenance needed.
