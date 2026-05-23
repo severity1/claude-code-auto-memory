@@ -174,11 +174,12 @@ Teams that need auditability can enable opt-in receipts in `.claude/auto-memory/
 
 ```json
 {
-  "receipts": true
+  "receipts": true,
+  "receiptHmacKeyEnv": "AUTO_MEMORY_RECEIPT_HMAC_KEY"
 }
 ```
 
-When enabled, the Stop/SubagentStop hooks append JSONL records to `.claude/auto-memory/receipts.jsonl` for `auto_memory.update.requested` and `auto_memory.update.completed`. Receipts include counts, short SHA-256 hashes, trigger mode, session hash, and auto-commit/push outcome. They intentionally set `raw_paths_included=false` and `raw_memory_included=false`; raw file paths, commit messages, prompts, and CLAUDE.md/AGENTS.md content are not logged.
+When enabled, the Stop/SubagentStop hooks append JSONL records to `.claude/auto-memory/receipts.jsonl` for `auto_memory.update.requested` and `auto_memory.update.completed`. Receipts include counts, trigger mode, active memory file, auto-commit/push outcome, and privacy flags. For stable shareable identifiers, set `AUTO_MEMORY_RECEIPT_HMAC_KEY` (or the env var named by `receiptHmacKeyEnv`) so session/file identifiers are keyed with short HMAC-SHA256 values. If no key is set, receipts still write counts and outcomes but omit session/file hashes instead of falling back to guessable raw SHA-256 hashes. They intentionally set `raw_paths_included=false` and `raw_memory_included=false`; raw file paths, commit messages, prompts, and CLAUDE.md/AGENTS.md content are not logged.
 
 ## CLAUDE.md Format
 

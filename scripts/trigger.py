@@ -14,6 +14,7 @@ the agent runs in foreground with full permissions.
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import os
 import subprocess
@@ -76,9 +77,20 @@ def receipt_file_path(project_dir: str) -> Path:
     return Path(project_dir) / ".claude" / "auto-memory" / "receipts.jsonl"
 
 
-def sha256_short(value: str) -> str:
-    """Return a short SHA-256 hash for receipt fields."""
-    return hashlib.sha256(value.encode("utf-8")).hexdigest()[:16]
+def receipt_hmac_key(config: dict[str, Any]) -> str | None:
+    """Return the configured HMAC key for shareable receipt hashes, if present."""
+    env_name = config.get("receiptHmacKeyEnv", "AUTO_MEMORY_RECEIPT_HMAC_KEY")
+    if not isinstance(env_name, str) or not env_name:
+        env_name = "AUTO_MEMORY_RECEIPT_HMAC_KEY"
+    key = os.environ.get(env_name)
+    return key if key else None
+
+
+def receipt_hash(value: str, key: str | None) -> str | None:
+    """Return a short keyed hash for receipt fields, or None when no key is set."""
+    if not key:
+        return None
+    return hmac.new(key.encode("utf-8"), value.encode("utf-8"), hashlib.sha256).hexdigest()[:16]
 
 
 def write_receipt(
@@ -102,15 +114,20 @@ def write_receipt(
     path = receipt_file_path(project_dir)
     path.parent.mkdir(parents=True, exist_ok=True)
     active = get_active_memory_file(get_memory_files(config))
+    key = receipt_hmac_key(config)
+    hashed_files = [receipt_hash(f, key) for f in sorted(files)] if key else []
     receipt: dict[str, Any] = {
         "schema": "auto-memory.receipt.v1",
         "event": event,
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "session_id_hash": sha256_short(session_id) if session_id else None,
+        "session_id_hash": receipt_hash(session_id, key) if session_id else None,
         "trigger_mode": config.get("triggerMode", "default"),
         "active_memory_file": active,
         "changed_file_count": len(files),
-        "changed_file_hashes": [sha256_short(f) for f in sorted(files)],
+        "changed_file_hashes": hashed_files,
+        "hash_algorithm": "hmac-sha256-16" if key else "none",
+        "hmac_key_env": config.get("receiptHmacKeyEnv", "AUTO_MEMORY_RECEIPT_HMAC_KEY"),
+        "hashes_omitted_reason": None if key else "set AUTO_MEMORY_RECEIPT_HMAC_KEY or receiptHmacKeyEnv for shareable stable hashes",
         "raw_paths_included": False,
         "raw_memory_included": False,
     }
