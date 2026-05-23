@@ -1084,3 +1084,62 @@ class TestAutoPush:
         """Returns False when not in a git repo."""
         result = trigger.auto_push(str(tmp_path))
         assert result is False
+
+
+class TestReceipts:
+    """Tests for opt-in privacy-safe receipt logging."""
+
+    def test_write_receipt_disabled_by_default(self, tmp_path):
+        """Receipt log is not created unless receipts=true is configured."""
+        trigger.write_receipt(
+            str(tmp_path),
+            "auto_memory.update.requested",
+            "sess-001",
+            ["/repo/src/private.py"],
+            {"triggerMode": "default"},
+        )
+
+        assert not trigger.receipt_file_path(str(tmp_path)).exists()
+
+    def test_write_receipt_hashes_paths_without_raw_values(self, tmp_path):
+        """Receipt log stores hashes/counts, not raw file paths or memory bodies."""
+        raw_path = "/repo/src/customer-secret-flow.py"
+        trigger.write_receipt(
+            str(tmp_path),
+            "auto_memory.update.requested",
+            "sess-001",
+            [raw_path],
+            {"triggerMode": "gitmode", "memoryFiles": ["AGENTS.md"], "receipts": True},
+        )
+
+        receipt_path = trigger.receipt_file_path(str(tmp_path))
+        line = receipt_path.read_text()
+        receipt = json.loads(line)
+
+        assert receipt["schema"] == "auto-memory.receipt.v1"
+        assert receipt["event"] == "auto_memory.update.requested"
+        assert receipt["trigger_mode"] == "gitmode"
+        assert receipt["active_memory_file"] == "AGENTS.md"
+        assert receipt["changed_file_count"] == 1
+        assert receipt["raw_paths_included"] is False
+        assert receipt["raw_memory_included"] is False
+        assert receipt["changed_file_hashes"] == [trigger.sha256_short(raw_path)]
+        assert "customer-secret-flow.py" not in line
+        assert "sess-001" not in line
+
+    def test_handle_subagent_stop_writes_completed_receipt(self, tmp_path):
+        """SubagentStop appends completion receipt before clearing dirty files."""
+        config_dir = tmp_path / ".claude" / "auto-memory"
+        config_dir.mkdir(parents=True)
+        (config_dir / "config.json").write_text(json.dumps({"receipts": True}))
+        (config_dir / "dirty-files-sess-001").write_text("/repo/src/a.py\n")
+
+        trigger.handle_subagent_stop({"session_id": "sess-001"}, str(tmp_path))
+
+        receipt_path = trigger.receipt_file_path(str(tmp_path))
+        receipt = json.loads(receipt_path.read_text().splitlines()[-1])
+        assert receipt["event"] == "auto_memory.update.completed"
+        assert receipt["changed_file_count"] == 1
+        assert receipt["auto_commit_attempted"] is False
+        assert receipt["raw_paths_included"] is False
+        assert (config_dir / "dirty-files-sess-001").read_text() == ""
