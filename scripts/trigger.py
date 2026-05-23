@@ -13,11 +13,14 @@ the agent runs in foreground with full permissions.
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
 import os
 import subprocess
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -67,6 +70,72 @@ def dirty_file_path(project_dir: str, session_id: str = "") -> Path:
     if session_id:
         return base / f"dirty-files-{session_id}"
     return base / "dirty-files"
+
+
+def receipt_file_path(project_dir: str) -> Path:
+    """Return the privacy-safe receipt log path."""
+    return Path(project_dir) / ".claude" / "auto-memory" / "receipts.jsonl"
+
+
+def receipt_hmac_key(config: dict[str, Any]) -> str | None:
+    """Return the configured HMAC key for shareable receipt hashes, if present."""
+    env_name = config.get("receiptHmacKeyEnv", "AUTO_MEMORY_RECEIPT_HMAC_KEY")
+    if not isinstance(env_name, str) or not env_name:
+        env_name = "AUTO_MEMORY_RECEIPT_HMAC_KEY"
+    key = os.environ.get(env_name)
+    return key if key else None
+
+
+def receipt_hash(value: str, key: str | None) -> str | None:
+    """Return a short keyed hash for receipt fields, or None when no key is set."""
+    if not key:
+        return None
+    return hmac.new(key.encode("utf-8"), value.encode("utf-8"), hashlib.sha256).hexdigest()[:16]
+
+
+def write_receipt(
+    project_dir: str,
+    event: str,
+    session_id: str,
+    files: list[str],
+    config: dict[str, Any],
+    extra: dict[str, Any] | None = None,
+) -> None:
+    """Append a privacy-safe auto-memory receipt when enabled.
+
+    Receipts are intentionally opt-in and never include raw file paths,
+    commit messages, prompts, or memory-file contents. They are useful for
+    teams that want proof that auto-memory requested or completed a memory
+    refresh without leaking the changed-file list into logs.
+    """
+    if not config.get("receipts", False):
+        return
+
+    path = receipt_file_path(project_dir)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    active = get_active_memory_file(get_memory_files(config))
+    key = receipt_hmac_key(config)
+    hashed_files = [receipt_hash(f, key) for f in sorted(files)] if key else []
+    receipt: dict[str, Any] = {
+        "schema": "auto-memory.receipt.v1",
+        "event": event,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "session_id_hash": receipt_hash(session_id, key) if session_id else None,
+        "trigger_mode": config.get("triggerMode", "default"),
+        "active_memory_file": active,
+        "changed_file_count": len(files),
+        "changed_file_hashes": hashed_files,
+        "hash_algorithm": "hmac-sha256-16" if key else "none",
+        "hmac_key_env": config.get("receiptHmacKeyEnv", "AUTO_MEMORY_RECEIPT_HMAC_KEY"),
+        "hashes_omitted_reason": None if key else "set AUTO_MEMORY_RECEIPT_HMAC_KEY or receiptHmacKeyEnv for shareable stable hashes",
+        "raw_paths_included": False,
+        "raw_memory_included": False,
+    }
+    if extra:
+        receipt.update(extra)
+
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(receipt, sort_keys=True) + "\n")
 
 
 def read_dirty_files(project_dir: str, session_id: str = "") -> list[str]:
@@ -132,6 +201,8 @@ def handle_stop(input_data: dict[str, Any], project_dir: str) -> None:
     # In gitmode, only trigger if there are actually dirty files
     # (which means a commit happened but the agent hasn't run yet)
     _ = trigger_mode  # Used for future mode-specific logic
+
+    write_receipt(project_dir, "auto_memory.update.requested", session_id, files, config)
 
     output = {
         "decision": "block",
@@ -243,10 +314,29 @@ def handle_subagent_stop(input_data: dict[str, Any], project_dir: str) -> None:
 
     # Auto-commit/push before clearing dirty files
     config = load_config(project_dir)
-    if config.get("autoCommit", False):
-        if auto_commit_memory_files(project_dir, config):
-            if config.get("autoPush", False):
-                auto_push(project_dir)
+    auto_commit_attempted = bool(config.get("autoCommit", False))
+    auto_commit_succeeded = False
+    auto_push_attempted = False
+    auto_push_succeeded = False
+    if auto_commit_attempted:
+        auto_commit_succeeded = auto_commit_memory_files(project_dir, config)
+        if auto_commit_succeeded and config.get("autoPush", False):
+            auto_push_attempted = True
+            auto_push_succeeded = auto_push(project_dir)
+
+    write_receipt(
+        project_dir,
+        "auto_memory.update.completed",
+        session_id,
+        files,
+        config,
+        {
+            "auto_commit_attempted": auto_commit_attempted,
+            "auto_commit_succeeded": auto_commit_succeeded,
+            "auto_push_attempted": auto_push_attempted,
+            "auto_push_succeeded": auto_push_succeeded,
+        },
+    )
 
     clear_dirty_files(project_dir, session_id)
     cleanup_stale_session_files(project_dir)

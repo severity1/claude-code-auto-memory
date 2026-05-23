@@ -36,6 +36,7 @@ Claude Code edits code -> Plugin tracks changes -> Isolated agent updates memory
 - **Isolated processing**: Agent runs in separate context window, doesn't consume main session tokens
 - **Marker-based updates**: Only modifies AUTO-MANAGED sections, preserves manual content
 - **Subtree support**: Hierarchical CLAUDE.md for monorepos
+- **Opt-in receipts**: Write privacy-safe JSONL proof that memory refreshes were requested/completed without logging raw paths or memory content
 
 ## Installation
 
@@ -166,6 +167,19 @@ CLAUDE.md updated
 - **Stop hook**: Minimal output only when dirty files exist
 - **Agent**: Runs in isolated context window - doesn't consume main session tokens
 - **Skills**: Progressive disclosure - load only when invoked
+
+### Privacy-safe receipts (optional)
+
+Teams that need auditability can enable opt-in receipts in `.claude/auto-memory/config.json`:
+
+```json
+{
+  "receipts": true,
+  "receiptHmacKeyEnv": "AUTO_MEMORY_RECEIPT_HMAC_KEY"
+}
+```
+
+When enabled, the Stop/SubagentStop hooks append JSONL records to `.claude/auto-memory/receipts.jsonl` for `auto_memory.update.requested` and `auto_memory.update.completed`. Receipts include counts, trigger mode, active memory file, auto-commit/push outcome, and privacy flags. For stable shareable identifiers, set `AUTO_MEMORY_RECEIPT_HMAC_KEY` (or the env var named by `receiptHmacKeyEnv`) so session/file identifiers are keyed with short HMAC-SHA256 values. If no key is set, receipts still write counts and outcomes but omit session/file hashes instead of falling back to guessable raw SHA-256 hashes. They intentionally set `raw_paths_included=false` and `raw_memory_included=false`; raw file paths, commit messages, prompts, and CLAUDE.md/AGENTS.md content are not logged.
 
 ## CLAUDE.md Format
 
